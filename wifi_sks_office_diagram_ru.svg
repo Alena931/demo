@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <style>
+      .title { font: 700 38px Arial, Helvetica, sans-serif; fill: #1f365c; }
+      .subtitle { font: 500 20px Arial, Helvetica, sans-serif; fill: #2f4f78; }
+      .label { font: 600 22px Arial, Helvetica, sans-serif; fill: #173557; }
+      .small { font: 500 17px Arial, Helvetica, sans-serif; fill: #204066; }
+      .note { font: 600 24px Arial, Helvetica, sans-serif; fill: #0d2b4a; }
+      .box { fill: #f6f9ff; stroke: #2f5f9b; stroke-width: 3; rx: 18; ry: 18; }
+      .cabinet { fill: #eef4ff; stroke: #29508a; stroke-width: 3; rx: 18; ry: 18; }
+      .provider { fill: #f2f7ff; stroke: #4b77ad; stroke-width: 3; rx: 16; ry: 16; }
+      .ap { fill: #e9f5ff; stroke: #2a78b8; stroke-width: 3; }
+      .device { fill: #ffffff; stroke: #6888aa; stroke-width: 2; }
+      .power { stroke: #cc7a00; stroke-width: 5; fill: none; stroke-linecap: round; }
+      .uplink { stroke: #2d5e99; stroke-width: 5; fill: none; marker-end: url(#arrowBlue); }
+      .wireless { stroke: #27a3c8; stroke-width: 4; fill: none; stroke-linecap: round; opacity: 0.8; }
+    </style>
+    <marker id="arrowBlue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L12,6 L0,12 z" fill="#2d5e99"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L12,6 L0,12 z" fill="#cc7a00"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="900" fill="#ffffff"/>
+
+  <text x="800" y="64" text-anchor="middle" class="title">Wi-Fi + SKS in office: how it works</text>
+  <text x="800" y="98" text-anchor="middle" class="subtitle">Wi-Fi is wireless only from AP to devices. Up to AP, internet goes via cables.</text>
+
+  <!-- Providers -->
+  <rect class="provider" x="80" y="190" width="250" height="90"/>
+  <text x="205" y="245" text-anchor="middle" class="label">Provider 1</text>
+
+  <rect class="provider" x="80" y="335" width="250" height="90"/>
+  <text x="205" y="390" text-anchor="middle" class="label">Provider 2</text>
+
+  <!-- Cabinet with router and switch -->
+  <rect class="cabinet" x="420" y="150" width="460" height="360"/>
+  <text x="650" y="186" text-anchor="middle" class="label">Telecom cabinet</text>
+
+  <rect class="box" x="470" y="220" width="360" height="95"/>
+  <text x="650" y="265" text-anchor="middle" class="label">Router / Firewall (Dual WAN)</text>
+  <text x="650" y="292" text-anchor="middle" class="small">Auto failover between 2 providers</text>
+
+  <rect class="box" x="470" y="355" width="360" height="120"/>
+  <text x="650" y="410" text-anchor="middle" class="label">PoE switch</text>
+  <text x="650" y="438" text-anchor="middle" class="small">Power + network over Cat6 (PoE)</text>
+
+  <!-- Uplink arrows from providers -->
+  <path class="uplink" d="M330 235 C380 235, 420 245, 470 255"/>
+  <path class="uplink" d="M330 380 C380 370, 420 320, 470 275"/>
+
+  <!-- Router to switch -->
+  <path class="uplink" d="M650 315 L650 355"/>
+
+  <!-- Cable lines (SKS) -->
+  <path class="power" marker-end="url(#arrowOrange)" d="M830 395 C945 395, 1020 320, 1080 260"/>
+  <path class="power" marker-end="url(#arrowOrange)" d="M830 410 C970 410, 1040 370, 1120 350"/>
+  <path class="power" marker-end="url(#arrowOrange)" d="M830 425 C970 425, 1050 430, 1120 470"/>
+  <path class="power" marker-end="url(#arrowOrange)" d="M830 440 C955 440, 1025 530, 1090 600"/>
+  <path class="power" marker-end="url(#arrowOrange)" d="M830 455 C965 455, 1090 580, 1260 620"/>
+
+  <text x="980" y="230" class="small" fill="#b56300">Cat6 cables (SKS)</text>
+
+  <!-- APs -->
+  <circle class="ap" cx="1100" cy="250" r="45"/>
+  <text x="1100" y="257" text-anchor="middle" class="label">AP1</text>
+
+  <circle class="ap" cx="1140" cy="350" r="45"/>
+  <text x="1140" y="357" text-anchor="middle" class="label">AP2</text>
+
+  <circle class="ap" cx="1140" cy="470" r="45"/>
+  <text x="1140" y="477" text-anchor="middle" class="label">AP3</text>
+
+  <circle class="ap" cx="1110" cy="610" r="45"/>
+  <text x="1110" y="617" text-anchor="middle" class="label">AP4</text>
+
+  <!-- Wireless waves -->
+  <path class="wireless" d="M1160 255 q40 -20 80 0"/>
+  <path class="wireless" d="M1165 350 q45 -20 90 0"/>
+  <path class="wireless" d="M1165 470 q45 -20 90 0"/>
+  <path class="wireless" d="M1135 610 q40 -20 85 0"/>
+
+  <path class="wireless" d="M1160 270 q40 20 80 0"/>
+  <path class="wireless" d="M1165 365 q45 20 90 0"/>
+  <path class="wireless" d="M1165 485 q45 20 90 0"/>
+  <path class="wireless" d="M1135 625 q40 20 85 0"/>
+
+  <!-- Devices -->
+  <rect class="device" x="1265" y="215" width="115" height="70" rx="10" ry="10"/>
+  <text x="1323" y="256" text-anchor="middle" class="small">Laptop</text>
+
+  <rect class="device" x="1295" y="315" width="90" height="62" rx="10" ry="10"/>
+  <text x="1340" y="351" text-anchor="middle" class="small">Phone</text>
+
+  <rect class="device" x="1290" y="435" width="120" height="70" rx="10" ry="10"/>
+  <text x="1350" y="476" text-anchor="middle" class="small">Laptop</text>
+
+  <rect class="device" x="1255" y="575" width="130" height="80" rx="10" ry="10"/>
+  <text x="1320" y="623" text-anchor="middle" class="small">Smartphone</text>
+
+  <!-- Wired device branch -->
+  <rect class="device" x="980" y="610" width="210" height="90" rx="12" ry="12"/>
+  <text x="1085" y="647" text-anchor="middle" class="label">Wired devices</text>
+  <text x="1085" y="675" text-anchor="middle" class="small">(PC / printer / NAS)</text>
+  <path class="power" marker-end="url(#arrowOrange)" d="M830 468 C900 520, 930 590, 980 635"/>
+
+  <!-- Footer note -->
+  <rect x="110" y="760" width="1380" height="92" rx="16" ry="16" fill="#e7f2ff" stroke="#3f77b1" stroke-width="2.5"/>
+  <text x="800" y="815" text-anchor="middle" class="note">
+    Wi-Fi is wireless to users, but access points are connected by Cat6 cables (SKS).
+  </text>
+</svg>
