@@ -306,28 +306,29 @@ def build():
         p = tf.paragraphs[0]
         run = p.add_run()
         set_run(run, role, 13, False, MUTED)
-        # schematic flow
-        fy = y + Inches(1.55)
-        steps = [("Веб / текст", color), ("→", LINE), ("1С", NAVY)]
-        sx = x + Inches(0.35)
-        for label, c in [("источник", color), ("агент", SAGE), ("1С", NAVY)]:
-            chip = rect(slide, sx, fy, Inches(1.45), Inches(0.38), c, radius=0.2)
-            tf = chip.text_frame
-            p = tf.paragraphs[0]
-            p.alignment = PP_ALIGN.CENTER
-            run = p.add_run()
-            set_run(run, label, 11, True, WHITE)
-            try:
-                chip.text_frame._txBody.bodyPr.set("anchor", "ctr")
-            except Exception:
-                pass
-            sx += Inches(1.65)
-        # not SP mark
-        ns = slide.shapes.add_textbox(x + Inches(0.35), fy + Inches(0.5), Inches(5.2), Inches(0.3))
-        p = ns.text_frame.paragraphs[0]
+        # куда попадает результат — две ячейки, без «агента»
+        fy = y + Inches(1.52)
+        a = rect(slide, x + Inches(0.35), fy, Inches(2.45), Inches(0.78), RGBColor(0xE8, 0xE4, 0xDC), radius=0.1)
+        tf = a.text_frame
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
         run = p.add_run()
-        set_run(run, "выхода в Space Planner нет", 12, True, CLAY)
-        by = fy + Inches(0.9)
+        set_run(run, "пишут в 1С", 13, True, NAVY)
+        try:
+            a.text_frame._txBody.bodyPr.set("anchor", "ctr")
+        except Exception:
+            pass
+        b = rect(slide, x + Inches(3.0), fy, Inches(2.55), Inches(0.78), RGBColor(0xEB, 0xE4, 0xDF), radius=0.1)
+        tf = b.text_frame
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        run = p.add_run()
+        set_run(run, "в Space Planner — нет", 13, True, CLAY)
+        try:
+            b.text_frame._txBody.bodyPr.set("anchor", "ctr")
+        except Exception:
+            pass
+        by = fy + Inches(0.95)
         bb = slide.shapes.add_textbox(x + Inches(0.35), by, Inches(5.2), Inches(1.5))
         tf = bb.text_frame
         tf.word_wrap = True
