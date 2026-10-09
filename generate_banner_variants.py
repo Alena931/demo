@@ -90,8 +90,9 @@ def variant_1(round_format):
             body.append(text(x, y, value, size, ink, family))
         body += [
             f'<rect x="18" y="491" width="682" height="209" fill="{ink}"/>',
-            text(70, 552, TEXT["roman"], 20, "#C7A365", family, spacing=4),
-            text(66, 634, TEXT["phone"], 52, bg, family, spacing=-1.5),
+            text(80, 608, TEXT["roman"], 18, "#C7A365", family, spacing=3),
+            '<rect x="183" y="571" width="3" height="53" fill="#C7A365"/>',
+            text(210, 615, TEXT["phone"], 39, bg, family, spacing=-1),
             '<rect x="70" y="660" width="72" height="4" fill="#C7A365"/>',
         ]
     else:
@@ -105,46 +106,49 @@ def variant_1(round_format):
             text(350, 391, TEXT["contract"] + "  \u2022  " + TEXT["warranty"], 18, ink, family, "middle"),
             text(350, 431, TEXT["stages"] + "  \u2022  " + TEXT["supervision"], 15, ink, family, "middle"),
             f'<rect x="0" y="476" width="700" height="224" fill="{ink}"/>',
-            text(350, 539, TEXT["roman"], 19, "#C7A365", family, "middle", 4),
-            text(350, 615, TEXT["phone"], 45, bg, family, "middle", -1),
+            text(130, 586, TEXT["roman"], 17, "#C7A365", family, spacing=3),
+            '<rect x="234" y="548" width="3" height="53" fill="#C7A365"/>',
+            text(258, 592, TEXT["phone"], 32, bg, family, spacing=-1),
         ]
     return svg_document("".join(body), "Variant 1 - olive", round_format)
 
 
 def variant_2(round_format):
     family = FONTS["v2"]["family"]
-    dark, white, blue, mist = "#171A20", "#F7F8FA", "#3B82F6", "#DCE7F7"
+    light, ink, blue, slate, white = "#EAF2FF", "#27415F", "#5F8FD8", "#4D6683", "#FFFFFF"
     if not round_format:
         body = [
-            f'<rect width="700" height="700" fill="{dark}"/>',
+            f'<rect width="700" height="700" fill="{light}"/>',
             f'<rect x="58" y="55" width="8" height="326" fill="{blue}"/>',
-            text(91, 89, TEXT["roman"], 15, blue, family, spacing=5),
-            text(88, 170, TEXT["remont"], 61, white, family, spacing=-3),
-            text(88, 240, TEXT["kvartir"], 61, white, family, spacing=-3),
+            text(88, 170, TEXT["remont"], 61, ink, family, spacing=-3),
+            text(88, 240, TEXT["kvartir"], 61, ink, family, spacing=-3),
             text(88, 332, TEXT["turnkey"], 70, blue, family, spacing=-3),
             f'<rect x="58" y="412" width="584" height="1.5" fill="{blue}"/>',
-            text(61, 458, "01  " + TEXT["contract"], 17, mist, family),
-            text(367, 458, "02  " + TEXT["warranty"], 17, mist, family),
-            text(61, 503, "03  " + TEXT["stages"], 15, mist, family),
-            text(367, 503, "04  " + TEXT["supervision"], 17, mist, family),
+            text(61, 458, "01  " + TEXT["contract"], 17, slate, family),
+            text(367, 458, "02  " + TEXT["warranty"], 17, slate, family),
+            text(61, 503, "03  " + TEXT["stages"], 15, slate, family),
+            text(367, 503, "04  " + TEXT["supervision"], 17, slate, family),
             f'<rect x="58" y="558" width="584" height="94" rx="9" fill="{blue}"/>',
-            text(350, 620, TEXT["phone"], 39, white, family, "middle", -2),
+            text(85, 617, TEXT["roman"], 16, white, family, spacing=3),
+            '<rect x="194" y="580" width="2" height="48" fill="#FFFFFF"/>',
+            text(220, 620, TEXT["phone"], 31, white, family, spacing=-1.5),
         ]
     else:
         body = [
-            f'<rect width="700" height="700" fill="{dark}"/>',
+            f'<rect width="700" height="700" fill="{light}"/>',
             f'<circle cx="350" cy="350" r="328" fill="none" stroke="{blue}" stroke-width="9"/>',
-            text(350, 99, TEXT["roman"], 15, blue, family, "middle", 5),
-            text(350, 191, TEXT["remont"], 52, white, family, "middle", -2),
-            text(350, 249, TEXT["kvartir"], 52, white, family, "middle", -2),
+            text(350, 191, TEXT["remont"], 52, ink, family, "middle", -2),
+            text(350, 249, TEXT["kvartir"], 52, ink, family, "middle", -2),
             text(350, 333, TEXT["turnkey"], 64, blue, family, "middle", -3),
             f'<rect x="150" y="369" width="400" height="2" fill="{blue}"/>',
-            text(350, 417, TEXT["contract"] + " / " + TEXT["warranty"], 15, mist, family, "middle"),
-            text(350, 453, TEXT["stages"] + " / " + TEXT["supervision"], 12.5, mist, family, "middle"),
-            f'<rect x="90" y="513" width="520" height="98" rx="49" fill="{blue}"/>',
-            text(350, 575, TEXT["phone"], 35, white, family, "middle", -2),
+            text(350, 417, TEXT["contract"] + " / " + TEXT["warranty"], 15, slate, family, "middle"),
+            text(350, 453, TEXT["stages"] + " / " + TEXT["supervision"], 12.5, slate, family, "middle"),
+            f'<rect x="105" y="513" width="490" height="98" rx="49" fill="{blue}"/>',
+            text(140, 574, TEXT["roman"], 14, white, family, spacing=2),
+            '<rect x="235" y="540" width="2" height="46" fill="#FFFFFF"/>',
+            text(260, 576, TEXT["phone"], 27, white, family, spacing=-1.5),
         ]
-    return svg_document("".join(body), "Variant 2 - graphite blue", round_format)
+    return svg_document("".join(body), "Variant 2 - light blue", round_format)
 
 
 def variant_3(round_format):
@@ -154,28 +158,30 @@ def variant_3(round_format):
         body = [
             f'<rect width="700" height="700" fill="{sand}"/>',
             f'<rect x="38" y="38" width="624" height="624" fill="none" stroke="{wine}" stroke-width="3"/>',
-            text(350, 101, TEXT["roman"], 17, terra, family, "middle", 5),
             text(350, 204, TEXT["remont_kvartir"], 45, wine, family, "middle", -1),
             text(350, 303, TEXT["turnkey"], 82, wine, family, "middle", -2),
             f'<circle cx="350" cy="354" r="7" fill="{terra}"/>',
             text(350, 408, TEXT["contract"] + "  \u2022  " + TEXT["warranty"], 18, wine, family, "middle"),
             text(350, 449, TEXT["stages"] + "  \u2022  " + TEXT["supervision"], 15.5, wine, family, "middle"),
             f'<rect x="87" y="512" width="526" height="111" fill="{wine}"/>',
-            text(350, 584, TEXT["phone"], 42, cream, family, "middle", -1.5),
+            text(115, 582, TEXT["roman"], 15, cream, family, spacing=2),
+            f'<rect x="219" y="544" width="2" height="51" fill="{terra}"/>',
+            text(245, 587, TEXT["phone"], 31, cream, family, spacing=-1),
         ]
     else:
         body = [
             f'<rect width="700" height="700" fill="{sand}"/>',
             f'<circle cx="350" cy="350" r="330" fill="none" stroke="{wine}" stroke-width="3"/>',
             f'<circle cx="350" cy="350" r="312" fill="none" stroke="{terra}" stroke-width="2"/>',
-            text(350, 105, TEXT["roman"], 16, terra, family, "middle", 5),
             text(350, 205, TEXT["remont_kvartir"], 39, wine, family, "middle", -1),
             text(350, 296, TEXT["turnkey"], 73, wine, family, "middle", -2),
             f'<circle cx="350" cy="345" r="7" fill="{terra}"/>',
             text(350, 396, TEXT["contract"] + "  \u2022  " + TEXT["warranty"], 16, wine, family, "middle"),
             text(350, 435, TEXT["stages"] + "  \u2022  " + TEXT["supervision"], 13.5, wine, family, "middle"),
-            f'<rect x="95" y="501" width="510" height="108" rx="54" fill="{wine}"/>',
-            text(350, 570, TEXT["phone"], 38, cream, family, "middle", -1.5),
+            f'<rect x="105" y="501" width="490" height="108" rx="54" fill="{wine}"/>',
+            text(137, 568, TEXT["roman"], 14, cream, family, spacing=2),
+            f'<rect x="232" y="529" width="2" height="51" fill="{terra}"/>',
+            text(257, 573, TEXT["phone"], 28, cream, family, spacing=-1),
         ]
     return svg_document("".join(body), "Variant 3 - sand terracotta", round_format)
 
