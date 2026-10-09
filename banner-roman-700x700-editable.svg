@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="700mm" height="700mm" viewBox="0 0 700 700">
+  <title>&#x420;&#x435;&#x43C;&#x43E;&#x43D;&#x442; &#x43A;&#x432;&#x430;&#x440;&#x442;&#x438;&#x440; &#x43F;&#x43E;&#x434; &#x43A;&#x43B;&#x44E;&#x447; &#x2014; &#x420;&#x43E;&#x43C;&#x430;&#x43D;</title>
+  <desc>&#x41A;&#x432;&#x430;&#x434;&#x440;&#x430;&#x442;&#x43D;&#x44B;&#x439; &#x43F;&#x435;&#x447;&#x430;&#x442;&#x43D;&#x44B;&#x439; &#x431;&#x430;&#x43D;&#x43D;&#x435;&#x440; 700 &#xD7; 700 &#x43C;&#x43C;</desc>
+
+  <!-- Palette: warm ivory, deep olive, muted brass accent -->
+  <rect width="700" height="700" fill="#F3F0E7"/>
+  <rect width="18" height="700" fill="#B18B4B"/>
+
+  <!-- Top label -->
+  <rect x="70" y="57" width="340" height="35" rx="17.5" fill="#26372F"/>
+  <text x="240" y="80.5"
+        fill="#F3F0E7" font-family="DejaVu Sans, sans-serif"
+        font-size="12.5" font-weight="700" letter-spacing="1.4"
+        text-anchor="middle">&#x420;&#x415;&#x41C;&#x41E;&#x41D;&#x422; &#x2022; &#x41E;&#x422;&#x414;&#x415;&#x41B;&#x41A;&#x410; &#x2022; &#x41A;&#x41E;&#x41D;&#x422;&#x420;&#x41E;&#x41B;&#x42C;</text>
+
+  <!-- Main headline -->
+  <text x="67" y="176"
+        fill="#26372F" font-family="DejaVu Sans, sans-serif"
+        font-size="50" font-weight="700" letter-spacing="-1.2">&#x420;&#x415;&#x41C;&#x41E;&#x41D;&#x422; &#x41A;&#x412;&#x410;&#x420;&#x422;&#x418;&#x420;</text>
+  <text x="64" y="278"
+        fill="#26372F" font-family="DejaVu Sans, sans-serif"
+        font-size="86" font-weight="700" letter-spacing="-3">&#x41F;&#x41E;&#x414; &#x41A;&#x41B;&#x42E;&#x427;</text>
+
+  <!-- Accent line -->
+  <rect x="70" y="324" width="560" height="4" fill="#B18B4B"/>
+
+  <!-- Benefits -->
+  <circle cx="79" cy="376" r="5" fill="#B18B4B"/>
+  <text x="96" y="383"
+        fill="#26372F" font-family="DejaVu Sans, sans-serif"
+        font-size="21" font-weight="700">&#x41F;&#x41E; &#x414;&#x41E;&#x413;&#x41E;&#x412;&#x41E;&#x420;&#x423;</text>
+
+  <circle cx="367" cy="376" r="5" fill="#B18B4B"/>
+  <text x="384" y="383"
+        fill="#26372F" font-family="DejaVu Sans, sans-serif"
+        font-size="21" font-weight="700">&#x413;&#x410;&#x420;&#x410;&#x41D;&#x422;&#x418;&#x42F;</text>
+
+  <circle cx="79" cy="427" r="5" fill="#B18B4B"/>
+  <text x="96" y="434"
+        fill="#26372F" font-family="DejaVu Sans, sans-serif"
+        font-size="18.5" font-weight="700">&#x41F;&#x41E;&#x42D;&#x422;&#x410;&#x41F;&#x41D;&#x410;&#x42F; &#x41E;&#x41F;&#x41B;&#x410;&#x422;&#x410;</text>
+
+  <circle cx="367" cy="427" r="5" fill="#B18B4B"/>
+  <text x="384" y="434"
+        fill="#26372F" font-family="DejaVu Sans, sans-serif"
+        font-size="21" font-weight="700">&#x422;&#x415;&#x425;&#x41D;&#x410;&#x414;&#x417;&#x41E;&#x420;</text>
+
+  <!-- Contact block -->
+  <rect x="18" y="491" width="682" height="209" fill="#26372F"/>
+  <text x="70" y="552"
+        fill="#C7A365" font-family="DejaVu Sans, sans-serif"
+        font-size="20" font-weight="700" letter-spacing="4">&#x420;&#x41E;&#x41C;&#x410;&#x41D;</text>
+  <text x="66" y="634"
+        fill="#F3F0E7" font-family="DejaVu Sans, sans-serif"
+        font-size="52" font-weight="700" letter-spacing="-1.5">+7 988 525 29 15</text>
+  <rect x="70" y="660" width="72" height="4" fill="#C7A365"/>
+</svg>
