@@ -6,7 +6,10 @@ from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.chart.series import SeriesLabel
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, Protection
+from zipfile import ZipFile, ZIP_DEFLATED
+import io
+import re
 from openpyxl.utils import get_column_letter
 from openpyxl.formatting.rule import CellIsRule
 from openpyxl.chart.shapes import GraphicalProperties
@@ -289,6 +292,7 @@ def style_header_row(ws, header_row, ncol):
         c.font = font
         c.alignment = align
         c.border = THIN
+        c.protection = Protection(locked=False)
     ws.row_dimensions[header_row].height = 36
     ws.freeze_panes = f"B{header_row + 1}"
 
@@ -323,6 +327,7 @@ def write_table(ws, rows, widths, header_row=1):
                 cell.number_format = "0.0"
             if c_i == 7 and isinstance(val, (int, float)):
                 cell.number_format = "#,##0"
+            cell.protection = Protection(locked=False)
         ws.row_dimensions[r_i].height = 36
     last_row = header_row + len(rows)
     red = Font(name="Calibri", size=10, color="C00000", bold=True)
@@ -338,15 +343,44 @@ def write_table(ws, rows, widths, header_row=1):
     return len(rows)
 
 
-def put_text(ws, cell, text, font, height=None, merge_to="G"):
+def put_text(ws, cell, text, font, height=None, merge_to=None):
+    """Write wrapped text in one cell. Do not merge: merged ranges block editing
+    in columns B–H («нельзя изменить часть объединённой ячейки»)."""
     ws[cell] = text
     ws[cell].font = font
     ws[cell].alignment = Alignment(wrap_text=True, vertical="top")
+    ws[cell].protection = Protection(locked=False)
     row = int("".join(ch for ch in cell if ch.isdigit()))
-    col = cell[0]
-    ws.merge_cells(f"{cell}:{merge_to}{row}")
     if height:
         ws.row_dimensions[row].height = height
+
+
+def unlock_workbook(wb):
+    wb.security = None
+    for ws in wb.worksheets:
+        ws.protection.sheet = False
+        for row in ws.iter_rows():
+            for cell in row:
+                if getattr(cell, "protection", None) is not None:
+                    cell.protection = Protection(locked=False)
+
+
+def save_editable(wb, path):
+    """Save and strip empty <workbookProtection/> that Excel/WPS treat as a lock."""
+    unlock_workbook(wb)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    out = io.BytesIO()
+    with ZipFile(buf, "r") as zin, ZipFile(out, "w", ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "xl/workbook.xml":
+                data = re.sub(br"<workbookProtection[^/]*/>", b"", data)
+                data = re.sub(br"<workbookProtection[^>]*>\s*</workbookProtection>", b"", data)
+            zout.writestr(item.filename, data)
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    Path(path).write_bytes(out.getvalue())
 
 
 def labeled_bar(ws, title, cat_col, val_col, header_row, last_row, anchor, x_title):
@@ -860,8 +894,8 @@ def main():
 
     Path(OUT).parent.mkdir(parents=True, exist_ok=True)
     Path(ART).parent.mkdir(parents=True, exist_ok=True)
-    wb.save(OUT)
-    wb.save(ART)
+    save_editable(wb, OUT)
+    Path(ART).write_bytes(Path(OUT).read_bytes())
     print("saved", OUT)
     print(
         "independent chains", len(independent_ch),
