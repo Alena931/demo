@@ -4,10 +4,13 @@
 Ничего не выдумано; пустые региональные заглушки не добавляются."""
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
+from openpyxl.chart.label import DataLabelList
+from openpyxl.chart.series import SeriesLabel
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.formatting.rule import CellIsRule
-from copy import copy
+from openpyxl.chart.shapes import GraphicalProperties
+from openpyxl.drawing.line import LineProperties
 from pathlib import Path
 
 OUT = "/workspace/FMCG_RF_sentyabr_2026.xlsx"
@@ -263,8 +266,12 @@ HEADERS = [
     "Магазины / заводы, шт", "Доля рынка Food, %",
 ]
 
-NUM_COLS = {3, 4, 5, 6, 8}  # 1-indexed
-INT_COLS = {7}
+THIN = Border(
+    left=Side(style="thin", color="D9D9D9"),
+    right=Side(style="thin", color="D9D9D9"),
+    top=Side(style="thin", color="D9D9D9"),
+    bottom=Side(style="thin", color="D9D9D9"),
+)
 
 
 def disclosed(row):
@@ -272,52 +279,38 @@ def disclosed(row):
     return any(v is not None for v in (rev, yoy, prof, debt, stores, share))
 
 
-def style_header(ws, ncol):
+def style_header_row(ws, header_row, ncol):
     fill = PatternFill("solid", fgColor="1F4E79")
     font = Font(name="Calibri", bold=True, color="FFFFFF", size=10)
     align = Alignment(wrap_text=True, vertical="center", horizontal="center")
-    thin = Border(
-        left=Side(style="thin", color="D9D9D9"),
-        right=Side(style="thin", color="D9D9D9"),
-        top=Side(style="thin", color="D9D9D9"),
-        bottom=Side(style="thin", color="D9D9D9"),
-    )
     for col in range(1, ncol + 1):
-        c = ws.cell(1, col)
+        c = ws.cell(header_row, col)
         c.fill = fill
         c.font = font
         c.alignment = align
-        c.border = thin
-    ws.row_dimensions[1].height = 36
-    ws.freeze_panes = "B2"
+        c.border = THIN
+    ws.row_dimensions[header_row].height = 36
+    ws.freeze_panes = f"B{header_row + 1}"
 
 
-def write_table(ws, rows, widths):
+def write_table(ws, rows, widths, header_row=1):
     rows = [r for r in rows if disclosed(r)]
     for i, h in enumerate(HEADERS, 1):
-        ws.cell(1, i, h)
-    style_header(ws, len(HEADERS))
-    thin = Border(
-        left=Side(style="thin", color="D9D9D9"),
-        right=Side(style="thin", color="D9D9D9"),
-        top=Side(style="thin", color="D9D9D9"),
-        bottom=Side(style="thin", color="D9D9D9"),
-    )
+        ws.cell(header_row, i, h)
+    style_header_row(ws, header_row, len(HEADERS))
     wrap = Alignment(wrap_text=True, vertical="center")
     even = PatternFill("solid", fgColor="F2F2F2")
-    brand = PatternFill("solid", fgColor="FFF2CC")
     num_font = Font(name="Calibri", size=10)
-    for r_i, row in enumerate(rows, 2):
-        name, typ, rev, yoy, prof, debt, stores, share, inside = row
+    for offset, row in enumerate(rows):
+        r_i = header_row + 1 + offset
+        name, typ, rev, yoy, prof, debt, stores, share, _inside = row
         values = [name, typ, rev, yoy, prof, debt, stores, share]
         for c_i, val in enumerate(values, 1):
             cell = ws.cell(r_i, c_i)
-            cell.border = thin
+            cell.border = THIN
             cell.alignment = wrap
             cell.font = num_font
-            if inside:
-                cell.fill = brand
-            elif r_i % 2 == 0:
+            if offset % 2 == 1:
                 cell.fill = even
             if val is None:
                 cell.value = "н/д"
@@ -331,229 +324,533 @@ def write_table(ws, rows, widths):
             if c_i == 7 and isinstance(val, (int, float)):
                 cell.number_format = "#,##0"
         ws.row_dimensions[r_i].height = 36
+    last_row = header_row + len(rows)
     red = Font(name="Calibri", size=10, color="C00000", bold=True)
     ws.conditional_formatting.add(
-        f"E2:E{len(rows)+1}",
+        f"E{header_row + 1}:E{last_row}",
         CellIsRule(operator="lessThan", formula=["0"], font=red),
     )
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
     last = get_column_letter(len(HEADERS))
-    ws.auto_filter.ref = f"A1:{last}{len(rows)+1}"
+    ws.auto_filter.ref = f"A{header_row}:{last}{last_row}"
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     return len(rows)
 
 
+def put_text(ws, cell, text, font, height=None, merge_to="G"):
+    ws[cell] = text
+    ws[cell].font = font
+    ws[cell].alignment = Alignment(wrap_text=True, vertical="top")
+    row = int("".join(ch for ch in cell if ch.isdigit()))
+    col = cell[0]
+    ws.merge_cells(f"{cell}:{merge_to}{row}")
+    if height:
+        ws.row_dimensions[row].height = height
+
+
+def labeled_bar(ws, title, cat_col, val_col, header_row, last_row, anchor, x_title):
+    """Horizontal bars. Names sit on the left axis; numbers sit on the bars."""
+    c = BarChart()
+    c.type = "bar"
+    c.grouping = "clustered"
+    c.title = title
+    c.x_axis.title = x_title
+    c.y_axis.title = None
+    data = Reference(ws, min_col=val_col, min_row=header_row, max_row=last_row)
+    cats = Reference(ws, min_col=cat_col, min_row=header_row + 1, max_row=last_row)
+    c.add_data(data, titles_from_data=True)
+    c.set_categories(cats)
+    c.legend = None
+    c.style = 10
+    c.y_axis.scaling.orientation = "maxMin"
+    c.dataLabels = DataLabelList()
+    c.dataLabels.showVal = True
+    c.dataLabels.showCatName = False
+    c.dataLabels.showSerName = False
+    c.x_axis.numFmt = "#,##0"
+    c.y_axis.majorGridlines = None
+    c.width = 22
+    c.height = 12
+    c.gapWidth = 60
+    ws.add_chart(c, anchor)
+    return c
+
+
 def main():
-    n_ch = sum(1 for r in CHAINS if disclosed(r))
-    n_ch_ind = sum(1 for r in CHAINS if disclosed(r) and not r[8])
-    n_mfg = sum(1 for r in MFG if disclosed(r))
-    n_mfg_ind = sum(1 for r in MFG if disclosed(r) and not r[8])
-    assert n_ch >= 50, n_ch
-    assert n_mfg >= 50, n_mfg
-    assert all(disclosed(r) for r in CHAINS)
-    assert all(disclosed(r) for r in MFG)
+    independent_ch = [r for r in CHAINS if disclosed(r) and not r[8]]
+    inside_ch = [r for r in CHAINS if disclosed(r) and r[8]]
+    independent_mfg = [r for r in MFG if disclosed(r) and not r[8]]
+    inside_mfg = [r for r in MFG if disclosed(r) and r[8]]
+    assert len(independent_ch) + len(inside_ch) >= 50
+    assert len(independent_mfg) >= 50
 
     wb = Workbook()
     title_f = Font(name="Calibri", size=16, bold=True, color="1F4E79")
-    h_f = Font(name="Calibri", size=12, bold=True, color="1F4E79")
+    h_f = Font(name="Calibri", size=13, bold=True, color="1F4E79")
     b_f = Font(name="Calibri", size=11)
+    link_f = Font(name="Calibri", size=11, color="0563C1", underline="single")
+    widths = [46, 42, 16, 10, 18, 16, 16, 14]
 
+    # ---------- 0. Как читать ----------
     ws0 = wb.active
     ws0.title = "0. Как читать"
     ws0.sheet_properties.tabColor = "1F4E79"
-    ws0["A1"] = "FMCG Россия — финансовый срез на сентябрь 2026"
-    ws0["A1"].font = title_f
-    ws0.merge_cells("A1:B1")
-    bullets = [
-        ("A3", "Таблицы", h_f),
-        ("A4",
-         "Листы «Сети» и «Производители»: только 8 столбцов со скриншота. "
-         "Строк больше 50, если нашлись; пустых «н/д»-заглушек нет. "
-         f"Сети: {n_ch} с хотя бы одной раскрытой цифрой 2025 (из них {n_ch_ind} независимых операторов, остальные — бренды/юрлица внутри групп, жёлтым). "
-         f"Производители: {n_mfg} с раскрытием (из них {n_mfg_ind} независимых контуров).",
-         b_f),
-        ("A6", "Что считать раскрытым", h_f),
-        ("A7",
-         "В строке есть хотя бы одно из: выручка, YoY, прибыль, чистый долг, магазины/заводы, доля Food. "
-         "«н/д» в соседних ячейках — открытой сопоставимой цифры нет, ничего не досчитано.",
-         b_f),
-        ("A9", "Период и контур", h_f),
-        ("A10",
-         "Основной столбец — полный 2025 (последний закрытый год). Доля Food у X5 — INFOLine YE2025 (16,6%); у Магнита — последний опубликованный срез INFOLine Q1 2026 (12,3%). "
-         "Два независимых рейтинга, не пары «сеть ↔ производитель». РФ only.",
-         b_f),
-        ("A12", "Жёлтые строки", h_f),
-        ("A13",
-         "Бренд или юрлицо внутри уже стоящей выше группы (Пятёрочка внутри X5, Альфа-М внутри Mercury, ВБД внутри PepsiCo и т.п.). "
-         "Цифры нужны для полки, суммировать с холдингом нельзя.",
-         b_f),
-        ("A15", "Источники (иерархия)", h_f),
-        ("A16",
-         "1) МСФО эмитента. 2) INFOLine Food retail / Food&Drink 2026. 3) РСБУ юрлица. 4) Ведомости / Т-Ж / Союзмолоко / Milknews. "
-         "При расхождении в ячейке приоритетный источник: МСФО/INFOLine важнее РСБУ одного юрлица.",
-         b_f),
-        ("A18", "Дата сборки", h_f),
-        ("A19", "13 октября 2026. Срез «на сентябрь 2026» = отчётность 2025 + опубликованные операционные факты 2026, без смешения лет в одной ячейке выручки.", b_f),
-    ]
-    for cell, text, font in bullets:
-        ws0[cell] = text
-        ws0[cell].font = font
-        ws0[cell].alignment = Alignment(wrap_text=True, vertical="top")
-    ws0.column_dimensions["A"].width = 118
-    ws0.row_dimensions[4].height = 64
-    ws0.row_dimensions[7].height = 40
-    ws0.row_dimensions[10].height = 48
-    ws0.row_dimensions[13].height = 48
-    ws0.row_dimensions[16].height = 48
+    put_text(ws0, "A1", "FMCG Россия — финансовый срез на сентябрь 2026", title_f, 24)
+    put_text(ws0, "A3", "Как устроены списки — простыми словами", h_f, 22)
 
+    put_text(
+        ws0, "A4",
+        "Представьте корзину X5. В ней уже лежат Пятёрочка, Перекрёсток и Чижик. "
+        "На листе «Сети» стоит одна строка «X5 Group» с выручкой 4 642 млрд ₽ — это вся корзина. "
+        "Пятёрочка отдельно (3 600 млрд) лежит на другом листе: «Вывески внутри групп». "
+        "Если сложить 4 642 + 3 600, вы посчитаете одни и те же магазины дважды.",
+        b_f, 64,
+    )
+    put_text(
+        ws0, "A6",
+        "Поэтому в файле три рабочих таблицы, а не одна каша:\n"
+        "• «Сети» — самостоятельные компании (X5, Магнит, Лента…). Их можно сравнивать друг с другом.\n"
+        "• «Вывески внутри групп» — бренды, которые УЖЕ входят в строку холдинга. Нужны, чтобы понять полку (Чижик vs Светофор), но не чтобы складывать с родителем.\n"
+        "• «Производители» — то же самое с другой стороны прилавка. PepsiCo и Черкизово стоят на полке и у X5, и у Магнита: это не пары «сеть ↔ завод».",
+        b_f, 88,
+    )
+    put_text(
+        ws0, "A8",
+        f"Сейчас в файле {len(independent_ch)} самостоятельных сетей с хотя бы одной раскрытой цифрой 2025 "
+        f"и {len(inside_ch)} вывесок внутри групп. Производителей с раскрытием: {len(independent_mfg)} "
+        f"(плюс {len(inside_mfg)} — Вимм-Билль-Данн внутри PepsiCo). "
+        "Пустых строк «всё н/д» нет: если цифры в открытых источниках не нашлось, компании в таблицу не ставили.",
+        b_f, 56,
+    )
+    put_text(
+        ws0, "A10",
+        "Столбцы в таблицах — только те, что на скриншоте. «н/д» в ячейке = открытой сопоставимой цифры нет, ничего не досчитано. "
+        "Год в ячейках выручки — полный 2025. Доля рынка Food у X5 — 16,6% по итогам 2025 (INFOLine); у Магнита 12,3% — это уже срез 1 кв. 2026, другого открытого годового не публиковали.",
+        b_f, 56,
+    )
+    put_text(
+        ws0, "A12",
+        "Где смотреть дальше: «Выводы» — разжёванные пункты 2, 3, 5, 6 и ответ про долги. "
+        "«Разборы топ-10» — ссылки на статьи. «Диаграммы» — графики с названиями на оси и таблицей «кто на картинке» над каждым.",
+        b_f, 44,
+    )
+    ws0.column_dimensions["A"].width = 118
+
+    # ---------- 1. Выводы ----------
     ws1 = wb.create_sheet("1. Выводы")
     ws1.sheet_properties.tabColor = "C45911"
-    ws1["A1"] = "Тезисы — для слайда или письма"
-    ws1["A1"].font = title_f
-    ws1.merge_cells("A1:F1")
-    theses = [
-        "1. Рынок Food РФ концентрируется: топ-10 сетей ≈ 12,7 трлн ₽ выручки 2025 (INFOLine), доля топ-10 в РТО Food 45,9% в 1 кв. 2026. X5 16,6% (YE2025) / 17,4% (Q1 2026), Магнит 12,3% (Q1 2026).",
-        "2. Выручка лидеров растёт, прибыль — нет. X5: 4,64 трлн (+18,8%), прибыль 94,8 млрд. Магнит: 3,51 трлн (+15,3%), убыток ≈ 16,6 млрд, чистый долг 496 млрд.",
-        "3. Из топ-4 одновременно ускорили выручку и прибыль Лента (1,10 трлн, +24,2%; прибыль 38,2) и Mercury (1,66 трлн, +20%; прибыль 54,5). Лента: долг 48,8 млрд.",
-        "4. Хард-дискаунтер расколот: Чижик (внутри X5) 417,5 млрд (+67%), Светофор 394 млрд (−3%) и сжатие сети. Семишагофф 70,7 млрд (+29%), Находка ~82 млрд.",
-        "5. Производители: топ-10 Food&Drink = 3 трлн ₽ (+9,1%). PepsiCo РФ 399 и Русагро 397 почти вничью. В десятке уже 5 агрохолдингов.",
-        "6. На полке молочки 2025 лидер «Логика молока» 167,1 млрд, не ВБД (162,3, внутри PepsiCo). Пиво: «Напитки вместе» 164,7; Балтика 145,9 выручки и 13,3 прибыли.",
-        "7. Регионалы с твёрдой выручкой >100 млрд: Верный 154, SPAR МВ 136, Мария-Ра 128, Ермолино ~111, Командор 100. Ниже — зона РСБУ отдельных юрлиц, не всегда вся вывеска.",
-        "8. Для переговоров/полки: кэш у X5, Ленты, Mercury, Черкизово, Русагро. Осторожнее Магнит (долг/убыток) и Светофор (сжатие). Жёлтые строки не прибавлять к холдингу.",
-    ]
-    for i, t in enumerate(theses, 3):
-        ws1.merge_cells(start_row=i, start_column=1, end_row=i, end_column=6)
-        ws1.cell(i, 1, t).font = Font(name="Calibri", size=11)
-        ws1.cell(i, 1).alignment = Alignment(wrap_text=True, vertical="top")
-        ws1.row_dimensions[i].height = 44
-    ws1.column_dimensions["A"].width = 28
-    ws1.column_dimensions["B"].width = 22
-    ws1.column_dimensions["C"].width = 14
-    ws1.column_dimensions["D"].width = 14
-    ws1.column_dimensions["E"].width = 22
-    ws1.column_dimensions["F"].width = 14
+    put_text(ws1, "A1", "Что происходит на рынке — без телеграфного сжатия", title_f, 24)
 
-    ws1["A12"] = "Данные для графиков"
-    ws1["A12"].font = h_f
-    ws1["A13"] = "Сеть"
-    ws1["B13"] = "Выручка 2025, млрд ₽"
-    ws1["C13"] = "Прибыль 2025, млрд ₽"
-    ws1["E13"] = "Производитель"
-    ws1["F13"] = "Выручка 2025, млрд ₽"
-    for col in range(1, 7):
-        if ws1.cell(13, col).value:
-            ws1.cell(13, col).font = Font(name="Calibri", bold=True, color="FFFFFF", size=10)
-            ws1.cell(13, col).fill = PatternFill("solid", fgColor="1F4E79")
+    put_text(ws1, "A3", "П.2. Почему выручка растёт, а прибыль — нет", h_f, 22)
+    put_text(
+        ws1, "A4",
+        "Выручка — сколько покупатели оставили в кассе. Прибыль — что осталось компании после зарплат, аренды, закупок и процентов по кредитам. "
+        "Можно продавать больше и при этом уносить домой меньше: магазины работают, а «цена денег» съедает результат.",
+        b_f, 48,
+    )
+    put_text(
+        ws1, "A5",
+        "X5 (Пятёрочка + Перекрёсток + Чижик). Касса выросла на 18,8% до 4,64 трлн ₽ — сеть открывалась и дорожали товары. "
+        "Чистая прибыль наоборот упала на 13,9% до 94,8 млрд. Компания сама пишет: выросли проценты по долгу (кредиты стали дороже и тело долга больше) "
+        "и разово отложили 4,1 млрд «на всякий случай», если кто-то из партнёров не расплатится. "
+        "Плюс X5 щедро вернула деньги акционерам: дивиденды ~159 млрд и выкуп своих акций ~45 млрд. "
+        "Капитал на балансе сжался, но это не дыра в магазинах, а раздача кэша владельцам. "
+        "Разбор: vc.ru «Х5 отчиталась за 2025 год. Рост выручки есть, чистая прибыль упала»; пресс-релиз X5 / e-disclosure.",
+        b_f, 96,
+    )
+    put_text(
+        ws1, "A6",
+        "Магнит. Касса тоже выросла: +15,3% до 3,51 трлн ₽. А вот прибыли нет — чистый убыток 16,6 млрд против прибыли 50 млрд годом раньше. "
+        "Почему: средневзвешенная ставка по долгу 17,1% (деньги в 2025 были очень дорогими), финансовых расходов 82,3 млрд; "
+        "минус 3 млрд на курсовых разницах по валютным счетам; плюс покупки «Азбуки вкуса» (29,6 млрд) и «Самбери». "
+        "Операционное юрлицо АО «Тандер» впервые за 20+ лет ушло в минус (около −22 млрд) — это не «магазины пустые», а проценты по кредитам на развитие. "
+        "Статьи: «Коммерсантъ» 01.04.2026; РБК про убыток «Тандера».",
+        b_f, 96,
+    )
+    put_text(
+        ws1, "A7",
+        "Коротко: полка живая, народ покупает. Ломается не спрос, а арифметика после процентов. "
+        "У X5 прибыль ещё плюсовая. У Магнита уже минус. Это разные степени одной болезни — дорогого долга, а не закрытых касс.",
+        b_f, 40,
+    )
+
+    put_text(ws1, "A9", "П.3. Долги: откуда, перед кем, развалится ли сеть?", h_f, 22)
+    put_text(
+        ws1, "A10",
+        "Что такое «чистый долг» в таблице. Компания должна банкам и/или держателям облигаций (это «весь долг»). "
+        "На счетах лежит кэш. Чистый долг = весь долг минус кэш. "
+        "Дальше смотрят, за сколько лет операционная прибыль (EBITDA) этот долг покрыла бы. "
+        "До 1× — легкий рюкзак. Около 3× — тяжелый, но для ритейла ещё живой. Выше 4–5× без запаса кэша — уже вопрос к выживанию.",
+        b_f, 64,
+    )
+    put_text(
+        ws1, "A11",
+        "Лента — 48,8 млрд чистого долга. Это не «дыра», а наоборот самый спокойный из крупных. "
+        "Год назад было 60,9 млрд — долг СНИЗИЛСЯ. Отношение долг/EBITDA 0,6× (меньше года прибыли). "
+        "Перед кем: на середину 2025 весь долг — банковские кредиты, облигаций у Ленты ещё не было (агентство НКР прямо пишет: «весь долг представлен банковскими кредитами»; компания только собирается выйти на облигации). "
+        "Имена банков в открытом отчёте пакетом не публикуют — это синдицированные и двусторонние линии крупных российских банков, плюс невыбранный лимит ~226 млрд. "
+        "На счетах 51,1 млрд кэша — почти столько же, сколько весь короткий долг 55,4 млрд. "
+        "Рейтинги весны 2026: АКРА AA(RU), НКР и Эксперт РА AA+.ru. "
+        "Развалится ли? По открытым данным — нет. 48,8 млрд в 23 раза меньше, чем у Магнита; рейтинг «высокая надёжность»; долг падает, а не растёт. "
+        "Долг появился как у любой крупной сети: товар на складе, стройка магазинов, покупка «Монетки», «Реми», «Улыбки радуги». Это рабочий инструмент, не признак краха. "
+        "Источники: презентация Ленты 4 кв. 2025; годовой отчёт 2025; пресс-релиз НКР 27.03.2026.",
+        b_f, 140,
+    )
+    put_text(
+        ws1, "A12",
+        "Магнит — 496 млрд чистого долга (почти ×2 за год). Вот здесь рюкзак тяжёлый. "
+        "Весь долг 746 млрд: примерно половина — кредиты банков (48,6%), половина — облигации на Московской бирже (50,8%). "
+        "Перед кем: банки-кредиторы + все, кто купил облигации «Магнита» (фонды, банки, частные инвесторы). Поимённый список держателей бумаг компания не раскрывает — так устроен биржевой рынок. "
+        "Долг/EBITDA 2,9×. Компания пишет, что во втором полугодии нарочно набрала лишних денег, чтобы заранее закрыть погашения 2026 года (рефинансирование), а не чтобы заткнуть кассовый разрыв. "
+        "Развалится ли? Признаков дефолта в открытую нет: 33 тысячи магазинов работают, отчётность выходит, облигации торгуются. "
+        "Но это уже не «комфортный» долг, как у Ленты: если ключевая ставка останется высокой, проценты продолжат съедать прибыль. Следить за 2026 — сможет ли перекредитоваться дешевле. "
+        "Источники: годовой обзор «Магнита» 2025 (структура долга); «Коммерсантъ» / РБК.",
+        b_f, 128,
+    )
+    put_text(
+        ws1, "A13",
+        "X5 — 228,5 млрд чистого долга. Долг/EBITDA 0,84× — лёгкий. Весь долг в рублях. "
+        "Невыбранные лимиты в крупнейших банках — 773 млрд, на счетах 178 млрд. "
+        "Перед кем: российские банки и рублёвые облигации (как и у Магнита, без поимённого списка держателей в пресс-релизе). "
+        "Развалится ли? Нет: запас лимитов больше, чем сам долг. Прибыль упала из-за процентов и дивидендов, а не из-за нехватки покупателей.",
+        b_f, 64,
+    )
+    put_text(
+        ws1, "A14",
+        "Mercury (К&Б + Бристоль). Сводного МСФО нет, поэтому чистого долга холдинга в таблице нет — это не «скрыли крах», а не публикуют консолидацию. "
+        "По юрлицу «Альфа-М» (К&Б) наоборот: с убытка 2024 вышли на прибыль 26 млрд при выручке 847 млрд. Владельцы сняли большие дивиденды — так делают, когда кэш есть, а не когда спасают сеть. "
+        "В 1 кв. 2026 К&Б впервые чуть сократила число магазинов (−4 точки) — замедление, не развал.",
+        b_f, 64,
+    )
+
+    put_text(ws1, "A16", "П.5. Производители: почему PepsiCo и Русагро почти вничью", h_f, 22)
+    put_text(
+        ws1, "A17",
+        "INFOLine сложил выручку десяти крупнейших производителей еды и напитков за 2025 — получилось 3 трлн ₽, рост всего +9,1%. "
+        "Ритейл (топ-10 сетей) рос быстрее, на 16%. То есть полка увеличивалась сильнее, чем отгрузки заводов: сети отъедают долю за счёт СТМ и дискаунтера, заводам расти труднее.",
+        b_f, 48,
+    )
+    put_text(
+        ws1, "A18",
+        "Первое и второе место — фотофиниш. PepsiCo Россия 398,8 млрд (+11,1%): напитки, снеки и молочка «Вимм-Билль-Данн». "
+        "Русагро 396,5 млрд (+16,6%) — почти догнала. Рост Русагро не «масло лучше продалось», а сделка: в периметр полностью вошло «Агро-Белогорье», мясная выручка +71%. "
+        "Чистая прибыль Русагро при этом упала в 1,6 раза до 19,9 млрд: льготные сельхозкредиты подорожали, рубль окреп — на валютной подушке и экспортной дебиторке получили курсовой минус. Долг вырос. "
+        "Гендиректор Тимур Липатов это прямо сказал в отчётности (Интерфакс 06.03.2026; презентация Русагро 12М 2025).",
+        b_f, 96,
+    )
+    put_text(
+        ws1, "A19",
+        "Что изменилось в десятке. Раньше наверху стояли глобальные бренды (PepsiCo, Nestlé, Mars). "
+        "Сейчас пять из десяти — российские агрохолдинги «от поля до прилавка»: Русагро, Мираторг, Черкизово, ГАП Ресурс, Агропромкомплектация. "
+        "Они сами выращивают, сами режут, сами кладут на полку. Для сетей это значит: переговоры всё чаще с вертикальным холдингом, а не с «просто поставщиком соуса». "
+        "ЭФКО (3-е место) выручку не нарастила (0%). KDV почти остановилась (+1%). Черкизово: выручка +11,4% до 289 млрд, прибыль 30 млрд, но «очищенная» прибыль даже чуть снизилась (−4,4% до 19,5) — красивая цифра 30 млрд включает переоценку биоактивов. Долг 140 млрд, 2,5× EBITDA, за год почти не вырос.",
+        b_f, 88,
+    )
+
+    put_text(ws1, "A21", "П.6. Молочка и пиво: кто теперь первый на полке", h_f, 22)
+    put_text(
+        ws1, "A22",
+        "Молочка. Несколько лет лидером рейтинга Союзмолоко / Milknews был «Вимм-Билль-Данн» (это кусок PepsiCo: «Домик в деревне», «Чудо» и т.д.). "
+        "В 2025 первое место впервые взяла «Логика молока» — 167,1 млрд ₽ (+17,9%) против 162,3 млрд у ВБД (+6,7%). "
+        "Кто это: бывшие заводы Danone («Простоквашино», «Растишка», «Актибио», «Тема»), с 2024 под российским контролем. "
+        "Почему обогнали: росли быстрее весь год, а в декабре докупили мороженое «Новосибхолод» / «Полярис» — и вырвались. "
+        "Важно: 162,3 млрд ВБД уже сидят внутри PepsiCo 398,8 на листе производителей. Отдельную строку ВБД смотрите в «Вывесках», не прибавляйте к PepsiCo. "
+        "Источник: Союзмолоко / Интерфакс 21.07.2026.",
+        b_f, 112,
+    )
+    put_text(
+        ws1, "A23",
+        "Пиво. «Напитки вместе» (так теперь называется бывший AB InBev Efes в России) — 164,7 млрд (+16,6%), INFOLine ставит их на границу топ-10/20 еды и напитков, по пиву это №1. "
+        "«Балтика» (бывший Carlsberg, тоже российский контур): выручка юрлица 145,9 млрд (+8,2%) и прибыль 13,3 млрд — годом раньше компания была убыточной, в 2025 вышла в плюс. "
+        "Для полки: оба больших пивных контура остались, сменились вывески и собственники, а не исчезли бренды.",
+        b_f, 64,
+    )
+
+    put_text(
+        ws1, "A25",
+        "Ещё два факта коротко. Хард-дискаунтер: Чижик внутри X5 +67% до 418 млрд, а «Светофор» −3% и минус 315 магазинов. Формат жив, конкретный бренд «Светофор» сжимается (конкуренция + проверки Роспотребнадзора, «Ъ» / Ведомости). "
+        "Регионалы с твёрдой выручкой >100 млрд: Верный 154, SPAR Миддл Волга 136, Мария-Ра 128, Ермолино ~111, Командор 100 — зона возможных сделок, не зона спокойного автономного роста.",
+        b_f, 56,
+    )
+    ws1.column_dimensions["A"].width = 28
+    for col in "BCDEFG":
+        ws1.column_dimensions[col].width = 16
+
+    # ---------- диаграммы ----------
+    wsd = wb.create_sheet("1б. Диаграммы")
+    wsd.sheet_properties.tabColor = "1565C0"
+    put_text(wsd, "A1", "Диаграммы: кто на картинке", title_f, 24)
+    put_text(
+        wsd, "A2",
+        "Каждый график — горизонтальные полоски. Слева на оси написано имя компании. "
+        "Длина полоски и число на ней — выручка или прибыль в млрд ₽ за 2025 год. "
+        "Таблица над графиком — тот же список: если подпись на оси мелковата, читайте таблицу.",
+        b_f, 48,
+    )
+
+    head_fill = PatternFill("solid", fgColor="1F4E79")
+    head_font = Font(name="Calibri", bold=True, color="FFFFFF", size=10)
+
+    def mini_table(ws, r0, title, headers, rows, start_col=1):
+        put_text(ws, f"{get_column_letter(start_col)}{r0}", title, h_f, 36, merge_to=get_column_letter(start_col + 2))
+        for i, h in enumerate(headers):
+            cell = ws.cell(r0 + 1, start_col + i, h)
+            cell.fill = head_fill
+            cell.font = head_font
+            cell.alignment = Alignment(horizontal="center", wrap_text=True)
+            cell.border = THIN
+        for i, row in enumerate(rows):
+            for j, val in enumerate(row):
+                cell = ws.cell(r0 + 2 + i, start_col + j, val if val is not None else "н/д")
+                cell.border = THIN
+                cell.font = Font(name="Calibri", size=11)
+                if j > 0 and isinstance(val, (int, float)):
+                    cell.number_format = "#,##0.0"
+                if j == 0:
+                    cell.font = Font(name="Calibri", size=11, bold=True)
 
     chart_chains = [
-        ("X5", 4642, 94.8),
-        ("Магнит", 3509, -16.6),
-        ("Mercury", 1660, 54.5),
-        ("Лента", 1104, 38.2),
-        ("Светофор", 394, 5.8),
-        ("ВкусВилл", 359, 6.6),
-        ("Fix Price", 313, 11.2),
-        ("METRO", 260, 4.4),
-        ("Ашан", 250, None),
-        ("О'КЕЙ", 196, 14.3),
+        ("X5 Group", 4642.0, 94.8),
+        ("Магнит", 3509.2, -16.6),
+        ("Mercury (К&Б + Бристоль)", 1660.0, 54.5),
+        ("Лента", 1103.7, 38.2),
+        ("Светофор", 394.4, 5.8),
+        ("ВкусВилл", 358.6, 6.6),
+        ("Fix Price", 313.3, 11.2),
+        ("METRO", 260.3, 4.4),
+        ("Ашан", 250.0, None),
+        ("О'КЕЙ", 196.0, 14.3),
     ]
-    for i, (n, v, p) in enumerate(chart_chains, 14):
-        ws1.cell(i, 1, n)
-        ws1.cell(i, 2, v).number_format = "#,##0"
-        if p is None:
-            ws1.cell(i, 3, "н/д")
-        else:
-            ws1.cell(i, 3, p).number_format = "0.0"
+    mini_table(
+        wsd, 4,
+        "График ниже: 10 сетей с самой большой выручкой 2025. Ось слева = название сети.",
+        ("Сеть (подпись на графике)", "Выручка 2025, млрд ₽", "Прибыль 2025, млрд ₽"),
+        [(n, v, p) for n, v, p in chart_chains],
+    )
+    for i, (n, v, p) in enumerate(chart_chains):
+        wsd.cell(6 + i, 1, n)
+        wsd.cell(6 + i, 2, v)
+        wsd.cell(6 + i, 3, p if p is not None else "н/д")
+
+    # отдельный сплошной ряд для прибыли — без «н/д» Ашана, иначе график ломается
+    wsd.cell(5, 5, "Сеть")
+    wsd.cell(5, 6, "Прибыль 2025, млрд ₽")
+    for col in (5, 6):
+        wsd.cell(5, col).fill = head_fill
+        wsd.cell(5, col).font = head_font
+        wsd.cell(5, col).border = THIN
+    profit_only = [(n, p) for n, _v, p in chart_chains if p is not None]
+    for i, (n, p) in enumerate(profit_only):
+        wsd.cell(6 + i, 5, n).border = THIN
+        wsd.cell(6 + i, 5).font = Font(name="Calibri", size=11, bold=True)
+        cell = wsd.cell(6 + i, 6, p)
+        cell.number_format = "#,##0.0"
+        cell.border = THIN
+
+    labeled_bar(
+        wsd,
+        "Кто сколько продал в 2025 году, млрд ₽. Подпись слева = название сети",
+        1, 2, 5, 15, "A18",
+        "Выручка, млрд ₽",
+    )
+    labeled_bar(
+        wsd,
+        "Кто сколько заработал в 2025 году, млрд ₽. Подпись слева = сеть. Магнит — столбик влево, это убыток",
+        5, 6, 5, 5 + len(profit_only), "A36",
+        "Прибыль, млрд ₽",
+    )
 
     chart_mfg = [
-        ("PepsiCo РФ", 399),
-        ("Русагро", 397),
-        ("ЭФКО", 344),
-        ("Мираторг", 342),
-        ("KDV", 308),
-        ("Черкизово", 289),
-        ("Ресурс", 288),
-        ("Nestlé РФ", 258),
-        ("Mars", 235),
-        ("Агропромкомплектация", 204),
+        ("PepsiCo Россия", 398.8),
+        ("Русагро", 396.5),
+        ("ЭФКО", 344.0),
+        ("Мираторг", 342.2),
+        ("KDV", 308.1),
+        ("Черкизово", 288.7),
+        ("ГАП Ресурс", 287.5),
+        ("Nestlé Россия", 257.6),
+        ("Mars Россия", 235.1),
+        ("Агропромкомплектация", 204.4),
     ]
-    for i, (n, v) in enumerate(chart_mfg, 14):
-        ws1.cell(i, 5, n)
-        ws1.cell(i, 6, v).number_format = "#,##0"
+    mini_table(
+        wsd, 56,
+        "График ниже: 10 производителей еды и напитков с самой большой выручкой 2025 (рейтинг INFOLine).",
+        ("Производитель (подпись на графике)", "Выручка 2025, млрд ₽"),
+        [(n, v) for n, v in chart_mfg],
+        start_col=1,
+    )
+    for i, (n, v) in enumerate(chart_mfg):
+        wsd.cell(58 + i, 1, n)
+        wsd.cell(58 + i, 2, v)
 
-    c1 = BarChart()
-    c1.type = "bar"
-    c1.title = "Топ сетей по выручке 2025, млрд ₽"
-    data = Reference(ws1, min_col=2, min_row=13, max_row=23)
-    cats = Reference(ws1, min_col=1, min_row=14, max_row=23)
-    c1.add_data(data, titles_from_data=True)
-    c1.set_categories(cats)
-    c1.legend = None
-    c1.style = 10
-    c1.y_axis.scaling.orientation = "maxMin"
-    c1.width = 18
-    c1.height = 8
-    ws1.add_chart(c1, "A26")
+    labeled_bar(
+        wsd,
+        "Кто сколько отгрузил в 2025 году, млрд ₽. Подпись слева = название производителя",
+        1, 2, 57, 67, "A70",
+        "Выручка, млрд ₽",
+    )
+    wsd.column_dimensions["A"].width = 36
+    wsd.column_dimensions["B"].width = 24
+    wsd.column_dimensions["C"].width = 24
+    wsd.column_dimensions["D"].width = 14
+    wsd.column_dimensions["E"].width = 18
 
-    c2 = BarChart()
-    c2.type = "bar"
-    c2.title = "Прибыль тех же сетей 2025, млрд ₽"
-    data2 = Reference(ws1, min_col=3, min_row=13, max_row=22)
-    cats2 = Reference(ws1, min_col=1, min_row=14, max_row=22)
-    c2.add_data(data2, titles_from_data=True)
-    c2.set_categories(cats2)
-    c2.legend = None
-    c2.style = 11
-    c2.y_axis.scaling.orientation = "maxMin"
-    c2.width = 18
-    c2.height = 8
-    ws1.add_chart(c2, "D26")
-
-    c3 = BarChart()
-    c3.type = "bar"
-    c3.title = "Топ-10 производителей Food&Drink 2025, млрд ₽"
-    data3 = Reference(ws1, min_col=6, min_row=13, max_row=23)
-    cats3 = Reference(ws1, min_col=5, min_row=14, max_row=23)
-    c3.add_data(data3, titles_from_data=True)
-    c3.set_categories(cats3)
-    c3.legend = None
-    c3.style = 10
-    c3.y_axis.scaling.orientation = "maxMin"
-    c3.width = 18
-    c3.height = 8
-    ws1.add_chart(c3, "A43")
-
-    widths = [46, 42, 16, 10, 18, 16, 16, 14]
+    # ---------- сети ----------
     ws2 = wb.create_sheet("2. Сети")
     ws2.sheet_properties.tabColor = "2E7D32"
-    write_table(ws2, CHAINS, widths)
+    put_text(
+        ws2, "A1",
+        "Самостоятельные сети. Одну компанию — одна строка. Пятёрочку здесь нет: она внутри X5, смотрите лист «Вывески внутри групп».",
+        Font(name="Calibri", size=11, italic=True, color="1F4E79"),
+        28, merge_to="H",
+    )
+    write_table(ws2, independent_ch, widths, header_row=2)
     ws2.sheet_view.showGridLines = False
+
+    ws2b = wb.create_sheet("2б. Вывески внутри групп")
+    ws2b.sheet_properties.tabColor = "F9A825"
+    put_text(ws2b, "A1", "Это не отдельные сети", title_f, 24, merge_to="H")
+    put_text(
+        ws2b, "A2",
+        "Пятёрочка уже посчитана внутри X5 (4 642 млрд). Чижик — тоже X5. «Альфа-М» — это юрлицо «Красного & Белого», оно уже внутри Mercury (1 660 млрд). "
+        "«Азбука вкуса» с 2025 принадлежит Магниту. Складывать эти строки с холдингом = посчитать одни магазины дважды. "
+        "Зачем лист тогда: чтобы видеть формат на полке (Чижик vs Светофор) и канал (онлайн X5, онлайн ВкусВилл).",
+        b_f, 56, merge_to="H",
+    )
+    write_table(ws2b, inside_ch, widths, header_row=4)
+    ws2b.sheet_view.showGridLines = False
 
     ws3 = wb.create_sheet("3. Производители")
     ws3.sheet_properties.tabColor = "7B1FA2"
-    write_table(ws3, MFG, widths)
+    put_text(
+        ws3, "A1",
+        "Самостоятельные производители. Вимм-Билль-Данн сюда не входит: его 162 млрд уже внутри PepsiCo, строка лежит в «Вывесках».",
+        Font(name="Calibri", size=11, italic=True, color="1F4E79"),
+        28, merge_to="H",
+    )
+    write_table(ws3, independent_mfg, widths, header_row=2)
     ws3.sheet_view.showGridLines = False
 
-    ws4 = wb.create_sheet("4. Источники")
+    ws3b = wb.create_sheet("3б. Вывески производителей")
+    ws3b.sheet_properties.tabColor = "CE93D8"
+    put_text(ws3b, "A1", "Молочка PepsiCo — уже внутри строки PepsiCo", title_f, 22, merge_to="H")
+    put_text(
+        ws3b, "A2",
+        "«Вимм-Билль-Данн» 162,3 млрд — это молочный кусок PepsiCo. На листе производителей PepsiCo = 398,8 млрд уже с этой молочкой. Не складывать.",
+        b_f, 36, merge_to="H",
+    )
+    write_table(ws3b, inside_mfg, widths, header_row=4)
+    ws3b.sheet_view.showGridLines = False
+
+    # ---------- разборы ----------
+    wsR = wb.create_sheet("4. Разборы топ-10")
+    wsR.sheet_properties.tabColor = "EF6C00"
+    put_text(wsR, "A1", "Открытые разборы по топ-10: что читать и зачем", title_f, 24)
+    put_text(
+        wsR, "A2",
+        "Не рейтинг и не таблица цифр. Это статьи и отчёты, которые объясняют, почему у компании сейчас так, а не иначе. "
+        "Цифра в файле берётся из отчётности; статья — чтобы понять сюжет.",
+        b_f, 40,
+    )
+
+    reviews_h = ["№", "Кто", "Что случилось простыми словами", "Где читать"]
+    for i, h in enumerate(reviews_h, 1):
+        cell = wsR.cell(4, i, h)
+        cell.fill = head_fill
+        cell.font = head_font
+        cell.alignment = Alignment(wrap_text=True, horizontal="center", vertical="center")
+        cell.border = THIN
+    wsR.row_dimensions[4].height = 28
+
+    reviews = [
+        (1, "X5 Group",
+         "Касса +19%, прибыль −14%. Причина не в пустых магазинах, а в процентах по долгу, резерве 4,1 млрд и больших дивидендах/байбеке.",
+         "https://vc.ru/media/2807691-h5-otchitalas-za-2025-god-rost-vyruchki-padenie-chistoy-pribyli",
+         "Разбор vc.ru"),
+        (2, "Магнит",
+         "Касса +15%, но убыток 16,6 млрд. Дорогой долг (ставка 17,1%), покупка «Азбуки вкуса» и «Самбери». «Тандер» — первый убыток за 20 лет. Сеть при этом работает.",
+         "https://www.kommersant.ru/doc/8633785",
+         "Коммерсантъ, убыток Магнита"),
+        (3, "Магнит — долг",
+         "Чистый долг ×2 до 496 млрд. Половина — банки, половина — облигации на бирже. Компания говорит: заняли заранее, чтобы закрыть погашения 2026-го.",
+         "https://www.ar2025.magnit.com/downloads/ru/MAGNIT_AR_2025_%D0%9E%D0%B1%D0%B7%D0%BE%D1%80%20%D0%B4%D0%B5%D1%8F%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D1%81%D1%82%D0%B8.pdf",
+         "Годовой обзор Магнита, структура долга"),
+        (4, "Лента",
+         "И выручка, и прибыль выросли. Долг 48,8 млрд упал, 0,6× EBITDA. Весь долг — кредиты банков, не облигации. Рейтинг AA+. К краху не похоже.",
+         "https://www.ratings.ru/ratings/press-releases/Lenta-RA-270326/",
+         "НКР, рейтинг AA+ Ленты"),
+        (5, "Лента — отчёт",
+         "Сама компания: выручка 1,1 трлн, долг/EBITDA 0,6×, кэш 51 млрд. Драйверы — «Монетка», супермаркеты, сделки.",
+         "https://www.lentagroup.ru/upload/iblock/621/7s5afbnqt0hjpxw29eh763jd6su42ig0/ya2025.pdf",
+         "Годовой отчёт Ленты 2025"),
+        (6, "Mercury / К&Б",
+         "Холдинг +20% до 1,66 трлн. «Альфа-М» вышла из убытка на 26 млрд прибыли. Владельцы сняли крупные дивиденды — признак кэша, не спасения.",
+         "https://www.malls.ru/rus/news/vladeltsy-krasnogo-belogo-i-bristolya-poluchili-dividendami-58-6-mlrd-rubley.shtml",
+         "Malls.ru, дивиденды Mercury"),
+        (7, "Светофор",
+         "Выручка −3%, закрыли 315 магазинов. Не «формат умер»: Чижик у X5 +67%. У Торгсервиса — конкуренция, качество точек и проверки Роспотребнадзора.",
+         "https://retailer.ru/svetofor-za-god-zakryl-bolee-300-magazinov/",
+         "Retailer.ru / Ведомости"),
+        (8, "PepsiCo vs Русагро",
+         "Фотофиниш 399 vs 397 млрд. Русагро догнала за счёт «Агро-Белогорья», но прибыль −1,6×: дорогие льготные кредиты и курс рубля.",
+         "https://www.interfax.ru/business/1076524",
+         "Интерфакс, прибыль Русагро"),
+        (9, "Черкизово",
+         "Выручка +11%, прибыль 30 млрд (очищенная 19,5, чуть ниже). Долг 140 млрд почти не вырос, нагрузка 2,5× с 3,0×.",
+         "https://cherkizovo-group.com/press/gruppa-cherkizovo-obyavlyaet-finansovye-rezultaty-za-2025-god/",
+         "Пресс-релиз Черкизово"),
+        (10, "Логика молока vs ВБД",
+         "Впервые лидер молочки — не PepsiCo. «Логика молока» (ex-Danone) 167 млрд обошла ВБД 162 млрд: быстрее росла и купила мороженое в декабре.",
+         "https://www.souzmoloko.ru/news/pressa-o-nas/pressa-o-nas_7742.html",
+         "Союзмолоко / Интерфакс"),
+        (11, "Топ-10 еды INFOLine",
+         "Десять заводов вместе 3 трлн (+9,1%). В десятке уже пять агрохолдингов. ЭФКО без роста, KDV +1%.",
+         "https://www.agroinvestor.ru/markets/news/46184-vyruchka-krupneyshikh-kompaniy-pishchevoy-otrasli-prevysila-3-trln-rubley/",
+         "Агроинвестор / INFOLine Food&Drink"),
+        (12, "«Тандер» Магнита",
+         "Первый убыток операционной компании с начала 2000-х. Магнит объясняет капвложениями и ставкой, не падением трафика.",
+         "https://www.rbc.ru/business/01/04/2026/69cd02cd9a794745dbb88be5",
+         "РБК, убыток Тандера"),
+    ]
+    wrap = Alignment(wrap_text=True, vertical="top")
+    for i, (num, who, what, url, label) in enumerate(reviews):
+        r = 5 + i
+        wsR.cell(r, 1, num).border = THIN
+        wsR.cell(r, 1).alignment = Alignment(horizontal="center", vertical="top")
+        wsR.cell(r, 2, who).border = THIN
+        wsR.cell(r, 2).font = Font(name="Calibri", size=11, bold=True)
+        wsR.cell(r, 2).alignment = wrap
+        wsR.cell(r, 3, what).border = THIN
+        wsR.cell(r, 3).font = b_f
+        wsR.cell(r, 3).alignment = wrap
+        link = wsR.cell(r, 4, label)
+        link.hyperlink = url
+        link.font = link_f
+        link.alignment = wrap
+        link.border = THIN
+        wsR.row_dimensions[r].height = 56
+    wsR.column_dimensions["A"].width = 6
+    wsR.column_dimensions["B"].width = 22
+    wsR.column_dimensions["C"].width = 78
+    wsR.column_dimensions["D"].width = 42
+    wsR.auto_filter.ref = "A4:D16"
+    wsR.freeze_panes = "A5"
+
+    # ---------- источники ----------
+    ws4 = wb.create_sheet("5. Источники цифр")
     ws4.sheet_properties.tabColor = "607D8B"
-    ws4["A1"] = "Короткий список источников"
-    ws4["A1"].font = title_f
+    put_text(ws4, "A1", "Откуда цифры в таблицах", title_f, 24)
     sources = [
-        "INFOLine: розница Food РФ; рейтинг сетей FMCG; FOOD&DRINK RATING RUSSIA-2026; e-grocery 2025 (Самокат 279,3; X5 Digital/онлайн; Лавка 203,1; Ozon 207,2). Топ-10 сетей ≈ 12,7 трлн, +16,1%.",
-        "X5 МСФО 2025: 4 642 млрд, +18,8%, прибыль 94,8, долг 228,5, магазины 29 790; онлайн 285,7 (+42,8%); доля Food YE2025 16,6%.",
-        "Магнит МСФО 2025: 3 509,2 (+15,3%), магазины 33 440; убыток INFOLine/Т-Ж ≈ −16,6; долг 496. Дикси: 10,8% розницы группы ≈ 376 млрд, +15,4%, 2 668 магазинов.",
-        "Лента МСФО 2025: 1 103,7, прибыль 38,2, долг 48,8, 6 760 магазинов. Монетка +29,1% (INFOLine, без абсолюта).",
-        "Fix Price МСФО 12М 2025 (упр.): 313,3 (+4,3%), прибыль 11,18, 7 818 магазинов.",
-        "Винлаб МСФО 2025: 95,1 (+9%), прибыль 3,5, чистая денежная позиция 6,5, 2 175 магазинов.",
-        "Верный (Союз св. Иоанна Воина) РСБУ 2025: 154,4 (+12,7%), прибыль 21,4 млн.",
-        "SPAR МВ РСБУ: 136,3 (+6,1%), прибыль 229 млн, 142 магазина (AK&M).",
-        "Семишагофф / ТК Прогресс РСБУ: 70,67 (+29%), прибыль 0,95. Авокадо INFOLine 65,69 (+4,7%). Около (X5) 66 млрд (×7,8 к 2024).",
-        "Линия / Гринн: 44 (+6,7%), прибыль 2,41, 18 гипер. Европа Курск РСБУ: 31 (+3%), прибыль 1,1.",
-        "Сибирь РСБУ (ksonline / Асефера / Толк): Ярче 168,3; Мария-Ра 127,6; Командор 100 / прибыль 1,7; Аникс 31,3; Лама 4 юрлица ≈ 32,3; Бегемаг 12,87; Низкоцен 9,5; Победа Омск 8; Доброцен 6,3; Быстроном 4,9.",
-        "Ермолино: INFOLine 111,1 выручки сети 2025; 3 005 магазинов на июнь 2026. Производство (Инвест Альянс) 36,7 / прибыль 6,8 — на листе производителей.",
-        "Союзмолоко / Milknews / Streda — переработчики молока 2025. INFOLine Food&Drink топ-10. МСФО Русагро, Черкизово, Дамате. РСБУ Балтика, Прогресс, Эссен, Сады Придонья, Очаково, Орими, Нэфис, Объединённые кондитеры.",
-        "Т-Ж 15.06.2026 — прибыль сетей INFOLine. Ведомости/EcomHub — Mercury 1,66; Ашан 250; О'КЕЙ 196; Победа/ТК Лето 176.",
+        "Иерархия: 1) МСФО эмитента  2) INFOLine  3) РСБУ конкретного юрлица  4) Ведомости / Т-Ж / Союзмолоко. При расхождении в ячейке — верхний уровень.",
+        "INFOLine: топ-10 сетей ≈ 12,7 трлн (+16,1%); Food&Drink топ-10 заводов = 3 трлн (+9,1%); e-grocery 2025 (Самокат 279,3; Лавка 203,1; Ozon 207,2).",
+        "X5 МСФО 2025 / e-disclosure: 4 642 млрд, прибыль 94,8, долг 228,5 до IFRS 16, 0,84× EBITDA, лимиты 773 млрд. Онлайн 285,7.",
+        "Магнит МСФО 2025: 3 509,2; убыток 16,6; долг 496 / всего 746 (кредиты 48,6%, облигации 50,8%), 2,9× EBITDA.",
+        "Лента МСФО 2025: 1 103,7; прибыль 38,2; чистый долг 48,8; кэш 51,1; 0,6× EBITDA. НКР: долг = банковские кредиты.",
+        "Fix Price 12М 2025: 313,3 / прибыль 11,18 / 7 818 магазинов. Винлаб МСФО: 95,1 / 3,5 / кэш 6,5 / 2 175 магазинов.",
+        "Верный РСБУ 154,4. SPAR МВ 136,3. Семишагофф 70,67. Линия 44. Европа Курск 31. Сибирские РСБУ — ksonline / Асефера / Толк.",
+        "Союзмолоко / Milknews 2025 — переработчики молока. Русагро и Черкизово — МСФО. Балтика, Прогресс, Эссен, Сады Придонья, Орими, Нэфис — РСБУ.",
+        "Т-Ж 15.06.2026 — прибыль сетей по INFOLine. Ведомости / EcomHub — Mercury 1,66; Ашан 250; О'КЕЙ 196; ТК Лето 176.",
     ]
     for i, s in enumerate(sources, 3):
         ws4.cell(i, 1, s).font = b_f
@@ -565,8 +862,13 @@ def main():
     Path(ART).parent.mkdir(parents=True, exist_ok=True)
     wb.save(OUT)
     wb.save(ART)
-    print(f"saved {OUT}")
-    print(f"chains {n_ch} (independent {n_ch_ind}), mfg {n_mfg} (independent {n_mfg_ind})")
+    print("saved", OUT)
+    print(
+        "independent chains", len(independent_ch),
+        "inside chains", len(inside_ch),
+        "independent mfg", len(independent_mfg),
+        "inside mfg", len(inside_mfg),
+    )
 
 
 if __name__ == "__main__":
