@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="700mm" height="700mm" viewBox="0 0 700 700">
-<title>Variant 1 - olive</title>
-<defs><clipPath id="round-cut"><circle cx="350" cy="350" r="350"/></clipPath></defs><g clip-path="url(#round-cut)"><rect width="700" height="700" fill="#F3F0E7"/><circle cx="350" cy="350" r="337" fill="none" stroke="#B18B4B" stroke-width="12"/><text x="350" y="104" fill="#26372F" font-family="DejaVu Sans" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="1.1">РЕМОНТ • ОТДЕЛКА • КОНТРОЛЬ</text><text x="350" y="207" fill="#26372F" font-family="DejaVu Sans" font-size="40" font-weight="700" text-anchor="middle" letter-spacing="-1">РЕМОНТ КВАРТИР</text><text x="350" y="299" fill="#26372F" font-family="DejaVu Sans" font-size="78" font-weight="700" text-anchor="middle" letter-spacing="-2.5">ПОД КЛЮЧ</text><rect x="145" y="340" width="410" height="4" fill="#B18B4B"/><text x="350" y="391" fill="#26372F" font-family="DejaVu Sans" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="0">ПО ДОГОВОРУ  •  ГАРАНТИЯ</text><text x="350" y="431" fill="#26372F" font-family="DejaVu Sans" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">ПОЭТАПНАЯ ОПЛАТА  •  ТЕХНАДЗОР</text><rect x="0" y="476" width="700" height="224" fill="#26372F"/><text x="130" y="586" fill="#C7A365" font-family="DejaVu Sans" font-size="17" font-weight="700" text-anchor="start" letter-spacing="3">РОМАН</text><rect x="234" y="548" width="3" height="53" fill="#C7A365"/><text x="258" y="592" fill="#F3F0E7" font-family="DejaVu Sans" font-size="32" font-weight="700" text-anchor="start" letter-spacing="-1">+7 988 525 29 15</text></g>
+<title>Ремонт квартир под ключ — Роман</title>
+<desc>Круглый печатный баннер 700 × 700 мм. Телефон максимально крупный в нижнем зелёном поле. Все элементы внутри окружности.</desc>
+<defs><clipPath id="circle-cut"><circle cx="350.0" cy="350.0" r="350.0"/></clipPath></defs>
+<g clip-path="url(#circle-cut)">
+<circle cx="350.0" cy="350.0" r="350.0" fill="#F3F0E7"/>
+<path d="M 27.503 486.000 A 350.000 350.000 0 0 0 672.497 486.000 Z" fill="#26372F"/>
+<circle cx="350.0" cy="350.0" r="339" fill="none" stroke="#B18B4B" stroke-width="11"/>
+<text x="350.000" y="123.696" fill="#26372F" font-family="DejaVu Sans" font-size="13.000" font-weight="700" text-anchor="middle" letter-spacing="1.700">РЕМОНТ • ОТДЕЛКА • КОНТРОЛЬ</text>
+<text x="350.000" y="182.719" fill="#26372F" font-family="DejaVu Sans" font-size="42.000" font-weight="700" text-anchor="middle" letter-spacing="-1.000">РЕМОНТ КВАРТИР</text>
+<text x="350.000" y="269.858" fill="#26372F" font-family="DejaVu Sans" font-size="76.000" font-weight="700" text-anchor="middle" letter-spacing="-2.400">ПОД КЛЮЧ</text>
+<rect x="155.000" y="303.771" width="390.000" height="3.500" fill="#B18B4B"/>
+<text x="350.000" y="345.050" fill="#26372F" font-family="DejaVu Sans" font-size="17.000" font-weight="700" text-anchor="middle" letter-spacing="0.400">ПО ДОГОВОРУ • ГАРАНТИЯ</text>
+<text x="350.000" y="377.638" fill="#26372F" font-family="DejaVu Sans" font-size="15.000" font-weight="700" text-anchor="middle" letter-spacing="0.350">ПОЭТАПНАЯ ОПЛАТА • ТЕХНАДЗОР</text>
+<text x="80.094" y="525.117" fill="#C7A365" font-family="DejaVu Sans" font-size="16.000" font-weight="700" text-anchor="start" letter-spacing="3.200">РОМАН</text>
+<rect x="173.917" y="506.842" width="2.500" height="24.902" fill="#C7A365"/>
+<text x="190.417" y="535.939" fill="#F3F0E7" font-family="DejaVu Sans" font-size="45.728" font-weight="700" text-anchor="start" letter-spacing="-1.500">+7 988 525 29 15</text>
+</g>
 </svg>

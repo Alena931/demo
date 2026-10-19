@@ -68,6 +68,10 @@ def svg_document(body, title, round_format=False):
 
 
 def variant_1(round_format):
+    if round_format:
+        from generate_round_banner import build_svg, layout
+
+        return build_svg(layout())
     family = FONTS["v1"]["family"]
     bg, ink, accent = "#F3F0E7", "#26372F", "#B18B4B"
     if not round_format:
