@@ -9,6 +9,8 @@ from openpyxl.utils import get_column_letter
 from pathlib import Path
 import shutil
 
+from regional_2026 import REGIONAL_SECTIONS
+
 SRC = "/tmp/template_sheet.xlsx"
 OUT = "/workspace/FMCG_RF_vyruchka_2026.xlsx"
 ART = "/opt/cursor/artifacts/FMCG_RF_vyruchka_2026.xlsx"
@@ -445,8 +447,28 @@ MEDIA = [
      "ни в конце 2025, ни в начале 2026. Что находилось: общий фон рынка "
      "(десять крупнейших сетей за год +9–11%; крупные производители еды почти без роста), "
      "вся доставка продуктов в стране 1,83–1,84 триллиона (это не Ozon и не Лавка), "
-     "и фразы вроде «новые заводы начнут себя окупать» у ЭФКО. В ячейку выручки это не ставили — это не продажи компании.",
+     "и фразы вроде «новые заводы начнут себя окупать» у ЭФКО. В ячейку выручки это не ставили — это не продажи компании. "
+     "Регионы меньшего масштаба и сигнал «режут ли ИТ» — на листе «Регионы».",
      "https://www.retail.ru/news/infoline-vyruchka-krupneyshikh-proizvoditeley-produktov-pitaniya-padaet-16-sentyabrya-2026-282211/"),
+    ("Регионы меньшего масштаба — 2026 и ИТ",
+     "У сетей на 30–200 точек своего отчёта за кусок 2026 почти нет. На листе «Регионы» те же десять колонок, что у крупных. "
+     "В деньгах за 2026 чаще «нет данных». В комментарии — последний закрытый 2025 и что видно на 2026–27: "
+     "открывают, склеивают сети, режут издержки или закрывают магазин. Это не «бюджет ИТ в рублях», такого никто не публикует.",
+     "https://www.kommersant.ru/doc/8937600"),
+    ("Открытия магазинов замедлились, лето 2026",
+     "Агентство INFOLine: у крупнейших сетей за год до июня 2026 точек стало больше только на 4,9% (годом раньше было +10,8%). "
+     "Новый магазин дороже на 8–12%. Часть денег уходит в доставку и цифру. Это фон рынка, не строка «Семишагофф».",
+     "https://www.kommersant.ru/doc/8937600"),
+    ("SPAR Калининград — не путать юрлица",
+     "Операционная компания ООО «Евроритейл»: за 2025 продали на 32,7 млрд (+15%), прибыль 0,56 млрд. "
+     "ООО «Спар-Калининград» — другое юрлицо, 54 млн выручки: это не магазины. "
+     "Директор сети в июне 2025: 105 магазинов.",
+     "https://firmoteka.ru/3906321175"),
+    ("Сибирские сети, апрель 2026",
+     "«Континент Сибирь» разобрал российские отчёты: «Лама» — сумма четырёх магазинных юрлиц 32,3 млрд, "
+     "«Аникс» отдельно, «Бегемаг» 13 млрд при прибыли всего 65 млн, «Низкоцен» 9,5 млрд. "
+     "Управляющую компанию «Лама» (134 млн) с магазинами складывать нельзя.",
+     "https://ksonline.ru/605083/skolko-zarabotali-krupnye-sibirskie-produktovye-seti-v-2025-godu/"),
     ("Агентство INFOLine — сети на весь 2026",
      "После полугодия агентство ждало рост крупнейших продуктовых сетей примерно 9–11% за полный год "
      "(за январь–июнь десятка уже +11,6%, годом раньше было +17%). Это прогноз десятки, не «Мария-Ра» и не «Командор».",
@@ -467,6 +489,8 @@ MEDIA = [
      "https://www.kommersant.ru/doc/8158706"),
 ]
 
+
+# Regional mid-size names: regional_2026.REGIONAL_SECTIONS (same 10 columns as HEADER).
 
 def font_like(src, **kw):
     return Font(
@@ -559,25 +583,69 @@ def apply_table(ws, mapping, empty_note):
     ws.column_dimensions["J"].width = 78
 
 
-def style_new_sheet(ws):
-    header_fill = PatternFill("solid", fgColor=TEAL)
-    header_font = Font(name="Times New Roman", size=11, bold=True)
-    body_font = Font(name="Times New Roman", size=11)
-    wrap = Alignment(wrap_text=True, vertical="top", horizontal="left")
-    name_fill = PatternFill("solid", fgColor=TEAL)
-    for col in range(1, 4):
-        cell = ws.cell(1, col)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = wrap
+def write_regional_sheet(wb):
+    """Same 10 columns, Times 11, teal, freeze B2 as the Google-format sheets."""
+    proto = wb["Сети"]
+    # After «Сети»: Как читать is index 0, Сети is 1.
+    ws = wb.create_sheet("Регионы", 2)
+    ws.sheet_properties.tabColor = TEAL
     ws.freeze_panes = "B2"
     ws.sheet_view.showGridLines = True
-    return body_font, name_fill, wrap
+    body = Font(name="Times New Roman", size=11)
+    section_font = Font(name="Times New Roman", size=11, bold=True)
+    unlocked = Protection(locked=False)
+    for col in range(1, 11):
+        letter = get_column_letter(col)
+        ws.column_dimensions[letter].width = proto.column_dimensions[letter].width
+        c = ws.cell(1, col)
+        clone_style(proto.cell(1, col), c)
+        c.value = HEADER[col - 1]
+        c.font = HEADER_FONT
+        c.fill = HEADER_FILL
+        c.alignment = WRAP_TOP
+        c.protection = unlocked
+    ws.row_dimensions[1].height = 36
+    r = 2
+    proto_row = 2
+    for title, rows in REGIONAL_SECTIONS:
+        for col in range(1, 11):
+            cell = ws.cell(r, col)
+            clone_style(proto.cell(proto_row, col), cell)
+            cell.value = title if col == 1 else None
+            cell.font = section_font
+            cell.fill = HEADER_FILL
+            cell.alignment = WRAP_TOP
+            cell.protection = unlocked
+        ws.row_dimensions[r].height = 28
+        r += 1
+        for name, typ, fact, period, yoy, fy, stores, profit, margin, note in rows:
+            values = [name, typ, fact, period, yoy, fy, stores, profit, margin, note]
+            for col, val in enumerate(values, 1):
+                cell = ws.cell(r, col)
+                clone_style(proto.cell(proto_row, col), cell)
+                cell.value = val
+                cell.font = body
+                cell.alignment = WRAP_TOP
+                cell.protection = unlocked
+                if col == 1:
+                    cell.fill = HEADER_FILL
+                if col in (3, 5, 6, 8, 9) and isinstance(val, (int, float)):
+                    cell.number_format = "#,##0.00" if abs(val) < 10 else "#,##0.0"
+                if col == 7 and isinstance(val, (int, float)):
+                    cell.number_format = "#,##0"
+            ws.cell(r, 10).alignment = WRAP_TOP
+            ws.row_dimensions[r].height = min(130, 52 + len(note) // 18)
+            r += 1
+    ws.auto_filter.ref = f"A1:J{r - 1}"
+    return r - 1
 
 
 def main():
     shutil.copyfile(SRC, OUT)
     wb = load_workbook(OUT)
+    for name in ("Как читать 2026", "Регионы"):
+        if name in wb.sheetnames:
+            del wb[name]
 
     apply_table(
         wb["Сети"],
@@ -593,6 +661,7 @@ def main():
         "Агентство INFOLine в сентябре 2026: у крупных производителей еды рост «около нуля» — это весь рынок, не эта компания. "
         "Российский отчёт за 2026 выйдет весной 2027.",
     )
+    n_reg = write_regional_sheet(wb)
 
     # Медиа — overwrite with 2026 sources, keep format
     wsM = wb["Медиа"]
@@ -641,7 +710,7 @@ def main():
     ws0.row_dimensions[1].height = 24
     blocks = [
         ("Почему нет колонки «выручка за весь 2026»",
-         "Сегодня 19 октября 2026. Год закроется 31 декабря. "
+         "Сегодня 29 октября 2026. Год закроется 31 декабря. "
          "Полные годовые отчёты компании обычно публикуют весной 2027. "
          "Поэтому в таблице два разных числа: уже вышедший кусок года и, где можно, оценка полного года."),
         ("Что в столбце «факт»",
@@ -672,8 +741,17 @@ def main():
          "Мировые PepsiCo и Nestlé дают прогноз на весь мир, не на Россию."),
         ("Формат файла",
          "Шрифт Times New Roman 11, шапка и столбец «Компания» — заливка #A2C4C9, как в вашей Google-таблице. "
-         "Списки те же: сети и производители в том же порядке. "
+         "Те же десять колонок на листах «Сети», «Производители» и «Регионы». "
          "К выручке добавлены прибыль и маржа, плюс этот лист и обновлённый «Медиа»."),
+        ("Лист «Регионы» — зачем и как читать ИТ",
+         "Это сети на 30–200 точек и заводы поменьше. Выручки за кусок 2026 у них почти нет — "
+         "в столбцах денег стоит «нет данных», чтобы не подменять 2026 закрытым 2025-м. "
+         "В комментарии два слоя: последний закрытый год (чтобы видеть маржу и прибыль) и что видно на 2026–27 "
+         "(открывают, склеивают сети, режут издержки, закрывают магазин). "
+         "Никто из них не публикует «бюджет ИТ в рублях». Сигнал такой: "
+         "растёт и строит склад / склеивает юрлица после сделки — ИТ скорее не режут; "
+         "продажи уже падали, убыток, закрывают гипермаркет — скорее заморозка; "
+         "тонкая маржа и «год эффективности» — ИТ только если окупается на издержках."),
     ]
     r = 3
     for title, text in blocks:
@@ -697,6 +775,7 @@ def main():
     print("chains with fact", sum(1 for v in CHAINS_2026.values() if v[0] != ND))
     print("mfg with fact", sum(1 for v in MFG_2026.values() if v[0] != ND))
     print("profit rows", len(PROFIT_2026))
+    print("regional rows written through", n_reg)
 
 
 if __name__ == "__main__":
