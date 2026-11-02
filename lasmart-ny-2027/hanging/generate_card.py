@@ -15,12 +15,13 @@ import xml.etree.ElementTree as ET
 import cairosvg
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 ROOT = Path("/workspace/lasmart-ny-2027")
 HANGING = ROOT / "hanging"
 LOGO = ROOT / "lasmart-logo.png"
+SHEEP_REF = HANGING / "sheep-ref.png"
 
 NAVY = "#2C2864"
 CYAN = "#2A8FCD"
@@ -231,83 +232,53 @@ def node_cluster(cx, cy, s, colors):
     return "".join(parts)
 
 
-def wool_path(rx, ry, n=10, bump=0.20):
-    """Scalloped ellipse — cartoon sheep fleece."""
-    cmds = []
-    for i in range(n):
-        a0 = -math.pi / 2 + 2 * math.pi * i / n
-        a1 = -math.pi / 2 + 2 * math.pi * (i + 0.5) / n
-        a2 = -math.pi / 2 + 2 * math.pi * (i + 1) / n
-        x0, y0 = rx * math.cos(a0), ry * math.sin(a0)
-        x1, y1 = (1 + bump) * rx * math.cos(a1), (1 + bump) * ry * math.sin(a1)
-        x2, y2 = rx * math.cos(a2), ry * math.sin(a2)
-        if i == 0:
-            cmds.append(f"M {x0:.2f} {y0:.2f}")
-        cmds.append(f"Q {x1:.2f} {y1:.2f} {x2:.2f} {y2:.2f}")
-    cmds.append("Z")
-    return " ".join(cmds)
+def _hex_rgb(color: str) -> tuple[int, int, int]:
+    c = color.lstrip("#")
+    return int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)
 
 
-def sheep(cx, cy, s, fill, stroke, facing=1, hop=0):
-    """Tiny cartoon sheep: round fleece, floppy ears, puff tail, stubby legs."""
-    sw = max(0.38, s * 0.05)
-    rx, ry = s * 0.50, s * 0.40
-    g = [f'<g transform="translate({cx:.2f} {cy:.2f}) scale({facing},1)">']
-    lift = s * 0.06 * hop
-    legs = [
-        (-0.28, 0.38, 0.11, 0.18),
-        (-0.08, 0.40, 0.11, 0.16),
-        (0.10, 0.38, 0.11, 0.18),
-        (0.30, 0.36, 0.11, 0.16),
-    ]
-    for lx, ly, lw, lh in legs:
-        y = s * ly - lift
-        g.append(
-            f'<rect x="{s*lx - s*lw/2:.2f}" y="{y:.2f}" width="{s*lw:.2f}" height="{s*lh:.2f}" '
-            f'rx="{s*0.05:.2f}" fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
-        )
-    # tail — small wool puff peeking from the rear
-    tx, ty = s * -0.62, s * 0.02
-    g.append(
-        f'<circle cx="{tx:.2f}" cy="{ty:.2f}" r="{s*0.14:.2f}" fill="{fill}" '
-        f'stroke="{stroke}" stroke-width="{sw:.2f}"/>'
+def sheep_sprite(stroke: str, flip: bool = False) -> Image.Image:
+    """The original doodle, white knocked out, ink tinted to a brand color."""
+    src = Image.open(SHEEP_REF).convert("RGBA")
+    src = src.resize((src.width * 4, src.height * 4), Image.Resampling.LANCZOS)
+    ink = _hex_rgb(stroke)
+    px = src.load()
+    w, h = src.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                continue
+            lum = (r + g + b) / 3
+            if lum >= 250:
+                px[x, y] = (255, 255, 255, 0)
+            elif lum < 175:
+                px[x, y] = (*ink, 255)
+            else:
+                t = (250 - lum) / 75
+                px[x, y] = (*ink, int(255 * min(1.0, t)))
+    bbox = src.getbbox()
+    if bbox:
+        src = src.crop(bbox)
+    if flip:
+        src = ImageOps.mirror(src)
+    return src
+
+
+def sheep_image(cx, baseline, height_mm, stroke, flip=False) -> str:
+    """Place the original sheep sitting on (cx, baseline), height in mm."""
+    im = sheep_sprite(stroke, flip)
+    h = height_mm
+    w = h * (im.size[0] / im.size[1])
+    buf = BytesIO()
+    im.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    x = cx - w / 2
+    y = baseline - h
+    return (
+        f'<image x="{x:.3f}" y="{y:.3f}" width="{w:.3f}" height="{h:.3f}" '
+        f'href="data:image/png;base64,{b64}"/>'
     )
-    g.append(
-        f'<circle cx="{tx - s*0.06:.2f}" cy="{ty - s*0.08:.2f}" r="{s*0.09:.2f}" fill="{fill}" '
-        f'stroke="{stroke}" stroke-width="{sw:.2f}"/>'
-    )
-    # fleece
-    g.append(
-        f'<path d="{wool_path(rx, ry, n=10, bump=0.22)}" fill="{fill}" '
-        f'stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linejoin="round"/>'
-    )
-    # floppy ears — hang down from the sides of the head, drawn behind it
-    ear_l = (s * 0.32, s * 0.14)
-    ear_r = (s * 0.74, s * 0.12)
-    g.append(
-        f'<ellipse cx="{ear_l[0]:.2f}" cy="{ear_l[1]:.2f}" rx="{s*0.08:.2f}" ry="{s*0.18:.2f}" '
-        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}" '
-        f'transform="rotate(32 {ear_l[0]:.2f} {ear_l[1]:.2f})"/>'
-    )
-    g.append(
-        f'<ellipse cx="{ear_r[0]:.2f}" cy="{ear_r[1]:.2f}" rx="{s*0.08:.2f}" ry="{s*0.17:.2f}" '
-        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}" '
-        f'transform="rotate(-38 {ear_r[0]:.2f} {ear_r[1]:.2f})"/>'
-    )
-    # head
-    g.append(
-        f'<ellipse cx="{s*0.52:.2f}" cy="{s*0.02:.2f}" rx="{s*0.24:.2f}" ry="{s*0.22:.2f}" '
-        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
-    )
-    eye = max(0.28, s * 0.035)
-    g.append(f'<circle cx="{s*0.46:.2f}" cy="{s*-0.02:.2f}" r="{eye:.2f}" fill="{stroke}"/>')
-    g.append(f'<circle cx="{s*0.60:.2f}" cy="{s*-0.00:.2f}" r="{eye:.2f}" fill="{stroke}"/>')
-    g.append(
-        f'<path d="M {s*0.46:.2f} {s*0.10:.2f} Q {s*0.56:.2f} {s*0.18:.2f} {s*0.66:.2f} {s*0.10:.2f}" '
-        f'fill="none" stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linecap="round"/>'
-    )
-    g.append("</g>")
-    return "".join(g)
 
 
 def background():
@@ -405,19 +376,10 @@ def front_svg() -> str:
     for x, y, r, c in sparks:
         g.append(star(x, y, r, c))
 
-    wool = "#FFFcf7"
-    flock = [
-        (28, 48, 8.4, wool, NAVY, 1, 1),
-        (18, 84, 7.6, wool, CYAN, -1, 0),
-        (32, 110, 7.2, wool, LIME, 1, 1),
-        (64, 176, 10.6, wool, NAVY, 1, 0),
-        (118, 171, 9.4, wool, MAGENTA, -1, 1),
-        (58, 194, 8.8, wool, NAVY, -1, 0),
-        (96, 189, 11.0, wool, NAVY, 1, 1),
-        (134, 196, 8.4, wool, LIME, -1, 0),
-    ]
-    for x, y, s, fill, stroke, facing, hop in flock:
-        g.append(sheep(x, y, s, fill, stroke, facing, hop))
+    # three original-drawing sheep, larger, sitting on the drifts
+    g.append(sheep_image(24, 90, 14.5, CYAN, flip=False))
+    g.append(sheep_image(70, 182, 22.0, NAVY, flip=False))
+    g.append(sheep_image(122, 176, 17.5, MAGENTA, flip=True))
 
     g.append(t(16, 156, "С", 30, MAGENTA, "Noto Serif Display", "700", "start", -0.8, italic=True))
     g.append(t(38, 154, "Новым годом!", 12.2, NAVY, "Noto Serif Display", "700", "start", -0.12, italic=True))
