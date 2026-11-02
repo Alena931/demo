@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lasmart NY 2027 card: hanging IT ornaments, navy + cyan, subtle ground."""
+"""Lasmart NY 2027 — front: hanging IT ornaments, full brand palette."""
 
 from __future__ import annotations
 
@@ -19,14 +19,18 @@ from PIL import Image
 
 
 ROOT = Path("/workspace/lasmart-ny-2027")
+HANGING = ROOT / "hanging"
 LOGO = ROOT / "lasmart-logo.png"
 
 NAVY = "#2C2864"
 CYAN = "#2A8FCD"
-CREAM = "#F6F3EB"
+LIME = "#80B828"
+YELLOW = "#F4C119"
+MAGENTA = "#921F78"
+CREAM = "#F4EFE4"
+CREAM_2 = "#E8E0D2"
 WHITE = "#FFFFFF"
 
-# Portrait card — hanging composition like the reference panel
 W, H = 148.0, 210.0
 
 FONTS = {
@@ -57,7 +61,6 @@ class Metrics:
 
 
 SERIF = Metrics(FONTS["serif"])
-SERIF_IT = Metrics(FONTS["serif_it"])
 MEDIUM = Metrics(FONTS["medium"])
 
 
@@ -95,21 +98,22 @@ def logo_image(x, y, height):
         im = im.crop(bbox)
     buf = BytesIO()
     im.save(buf, format="PNG")
-    raw = buf.getvalue()
     width = height * (im.size[0] / im.size[1])
-    b64 = base64.b64encode(raw).decode("ascii")
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
     return (
         f'<image x="{x:.3f}" y="{y:.3f}" width="{width:.3f}" height="{height:.3f}" '
         f'href="data:image/png;base64,{b64}"/>'
     )
 
 
-def hang(x, y1, color, width=0.35):
-    return f'<line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{y1:.2f}" stroke="{color}" stroke-width="{width}" stroke-linecap="round"/>'
+def hang(x, y1, color, width=0.4):
+    return (
+        f'<line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{y1:.2f}" '
+        f'stroke="{color}" stroke-width="{width}" stroke-linecap="round"/>'
+    )
 
 
 def star(cx, cy, r, color):
-    # 4-point spark, like a UI marker
     pts = []
     for i in range(8):
         ang = math.radians(-90 + i * 45)
@@ -127,7 +131,6 @@ def snowflake(cx, cy, r, color, stroke=0.7):
             f'<line x1="{cx:.2f}" y1="{cy:.2f}" x2="{x2:.2f}" y2="{y2:.2f}" '
             f'stroke="{color}" stroke-width="{stroke}" stroke-linecap="round"/>'
         )
-        # side ticks — reads as both snowflake and a 6-node graph
         b1, b2 = a + math.radians(22), a - math.radians(22)
         mx, my = cx + r * 0.62 * math.cos(a), cy + r * 0.62 * math.sin(a)
         tlen = r * 0.28
@@ -139,58 +142,54 @@ def snowflake(cx, cy, r, color, stroke=0.7):
             f'<line x1="{mx + tlen * math.cos(b2):.2f}" y1="{my + tlen * math.sin(b2):.2f}" '
             f'x2="{mx:.2f}" y2="{my:.2f}" stroke="{color}" stroke-width="{stroke * 0.85}" stroke-linecap="round"/>'
         )
-        parts.append(
-            f'<circle cx="{x2:.2f}" cy="{y2:.2f}" r="{r * 0.08:.2f}" fill="{color}"/>'
-        )
+        parts.append(f'<circle cx="{x2:.2f}" cy="{y2:.2f}" r="{r * 0.08:.2f}" fill="{color}"/>')
     return "".join(parts)
 
 
-def bauble(cx, cy, r, color, kind="graph"):
+def bauble(cx, cy, r, ring, inner, kind="graph"):
     cap_h, cap_w = r * 0.28, r * 0.42
     cap_y = cy - r - cap_h + 0.4
-    ring = (
-        f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r:.2f}" fill="none" stroke="{color}" stroke-width="1.35"/>'
-        f'<rect x="{cx - cap_w/2:.2f}" y="{cap_y:.2f}" width="{cap_w:.2f}" height="{cap_h:.2f}" rx="0.4" fill="{color}"/>'
-        f'<circle cx="{cx:.2f}" cy="{cap_y:.2f}" r="{cap_w * 0.22:.2f}" fill="none" stroke="{color}" stroke-width="0.7"/>'
+    ring_el = (
+        f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r:.2f}" fill="none" stroke="{ring}" stroke-width="1.4"/>'
+        f'<rect x="{cx - cap_w/2:.2f}" y="{cap_y:.2f}" width="{cap_w:.2f}" height="{cap_h:.2f}" rx="0.4" fill="{ring}"/>'
+        f'<circle cx="{cx:.2f}" cy="{cap_y:.2f}" r="{cap_w * 0.22:.2f}" fill="none" stroke="{ring}" stroke-width="0.7"/>'
     )
     if kind == "graph":
-        inner = snowflake(cx, cy, r * 0.58, color, stroke=0.55)
+        guts = snowflake(cx, cy, r * 0.58, inner, stroke=0.6)
     elif kind == "chip":
         s = r * 0.78
-        inner = (
+        guts = (
             f'<rect x="{cx - s/2:.2f}" y="{cy - s/2:.2f}" width="{s:.2f}" height="{s:.2f}" '
-            f'rx="0.8" fill="none" stroke="{color}" stroke-width="0.7"/>'
+            f'rx="0.8" fill="none" stroke="{inner}" stroke-width="0.75"/>'
         )
         for i in range(3):
             yy = cy - s * 0.22 + i * s * 0.22
-            inner += (
+            guts += (
                 f'<line x1="{cx - s*0.28:.2f}" y1="{yy:.2f}" x2="{cx + s*0.28:.2f}" y2="{yy:.2f}" '
-                f'stroke="{color}" stroke-width="0.55" stroke-linecap="round"/>'
+                f'stroke="{inner}" stroke-width="0.6" stroke-linecap="round"/>'
             )
-            # side pads
-            inner += f'<rect x="{cx - s/2 - 0.9:.2f}" y="{yy - 0.45:.2f}" width="0.9" height="0.9" fill="{color}"/>'
-            inner += f'<rect x="{cx + s/2:.2f}" y="{yy - 0.45:.2f}" width="0.9" height="0.9" fill="{color}"/>'
-    else:  # gauge / ring chart
-        inner = (
-            f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r * 0.42:.2f}" fill="none" stroke="{color}" stroke-width="1.1"/>'
+            guts += f'<rect x="{cx - s/2 - 0.95:.2f}" y="{yy - 0.45:.2f}" width="0.95" height="0.9" fill="{inner}"/>'
+            guts += f'<rect x="{cx + s/2:.2f}" y="{yy - 0.45:.2f}" width="0.95" height="0.9" fill="{inner}"/>'
+    else:
+        guts = (
+            f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r * 0.42:.2f}" fill="none" stroke="{inner}" stroke-width="1.15"/>'
             f'<path d="M {cx:.2f} {cy - r*0.42:.2f} A {r*0.42:.2f} {r*0.42:.2f} 0 0 1 {cx + r*0.36:.2f} {cy + r*0.22:.2f}" '
-            f'fill="none" stroke="{color}" stroke-width="2.1" stroke-linecap="round"/>'
-            f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r * 0.08:.2f}" fill="{color}"/>'
+            f'fill="none" stroke="{inner}" stroke-width="2.2" stroke-linecap="round"/>'
+            f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r * 0.09:.2f}" fill="{inner}"/>'
         )
-    return ring + inner
+    return ring_el + guts
 
 
 def tree(cx, top, s, color):
-    """Hierarchy chevrons — reads as a tree, built like a folder tree / organigram."""
     h1, h2, h3 = s * 0.42, s * 0.38, s * 0.34
     w1, w2, w3 = s * 0.92, s * 0.72, s * 0.52
-    y = top
 
     def tri(cx, y, w, h):
         return (
             f'<polygon points="{cx:.2f},{y:.2f} {cx + w/2:.2f},{y + h:.2f} {cx - w/2:.2f},{y + h:.2f}" fill="{color}"/>'
         )
 
+    y = top
     parts = [tri(cx, y, w1, h1)]
     parts.append(tri(cx, y + h1 * 0.55, w2, h2))
     parts.append(tri(cx, y + h1 * 0.55 + h2 * 0.55, w3, h3))
@@ -202,30 +201,19 @@ def tree(cx, top, s, color):
     return "".join(parts)
 
 
-def gift(cx, cy, s, color, filled=True):
-    """Release package — rounded module with a plus-ribbon."""
+def gift(cx, cy, s, box, ribbon):
     x, y, w, h = cx - s / 2, cy - s / 2, s, s * 0.92
-    if filled:
-        box = f'<rect x="{x:.2f}" y="{y:.2f}" width="{w:.2f}" height="{h:.2f}" rx="1.2" fill="{color}"/>'
-        rib = WHITE
-    else:
-        box = f'<rect x="{x:.2f}" y="{y:.2f}" width="{w:.2f}" height="{h:.2f}" rx="1.2" fill="none" stroke="{color}" stroke-width="1.2"/>'
-        rib = color
     rw = s * 0.16
-    ribbon = (
-        f'<rect x="{cx - rw/2:.2f}" y="{y:.2f}" width="{rw:.2f}" height="{h:.2f}" fill="{rib}"/>'
-        f'<rect x="{x:.2f}" y="{cy - rw/2:.2f}" width="{w:.2f}" height="{rw:.2f}" fill="{rib}"/>'
+    return (
+        f'<rect x="{x:.2f}" y="{y:.2f}" width="{w:.2f}" height="{h:.2f}" rx="1.2" fill="{box}"/>'
+        f'<rect x="{cx - rw/2:.2f}" y="{y:.2f}" width="{rw:.2f}" height="{h:.2f}" fill="{ribbon}"/>'
+        f'<rect x="{x:.2f}" y="{cy - rw/2:.2f}" width="{w:.2f}" height="{rw:.2f}" fill="{ribbon}"/>'
+        f'<circle cx="{cx - rw*0.9:.2f}" cy="{y:.2f}" r="{rw*0.55:.2f}" fill="{ribbon}"/>'
+        f'<circle cx="{cx + rw*0.9:.2f}" cy="{y:.2f}" r="{rw*0.55:.2f}" fill="{ribbon}"/>'
     )
-    # small bow
-    bow = (
-        f'<circle cx="{cx - rw*0.9:.2f}" cy="{y:.2f}" r="{rw*0.55:.2f}" fill="{rib}"/>'
-        f'<circle cx="{cx + rw*0.9:.2f}" cy="{y:.2f}" r="{rw*0.55:.2f}" fill="{rib}"/>'
-    )
-    return box + ribbon + bow
 
 
-def node_cluster(cx, cy, s, color):
-    """Tiny graph of three nodes — data cluster ornament."""
+def node_cluster(cx, cy, s, colors):
     pts = [
         (cx, cy - s * 0.42),
         (cx - s * 0.4, cy + s * 0.28),
@@ -236,137 +224,178 @@ def node_cluster(cx, cy, s, color):
         for x2, y2 in pts[i + 1 :]:
             parts.append(
                 f'<line x1="{x1:.2f}" y1="{y1:.2f}" x2="{x2:.2f}" y2="{y2:.2f}" '
-                f'stroke="{color}" stroke-width="0.7"/>'
+                f'stroke="{NAVY}" stroke-width="0.75"/>'
             )
-    for x, y in pts:
-        parts.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{s*0.16:.2f}" fill="{color}"/>')
+    for (x, y), c in zip(pts, colors):
+        parts.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{s*0.16:.2f}" fill="{c}"/>')
     return "".join(parts)
 
 
-def subtle_background():
-    """Barely-there dashboard grid, traces and nodes — not a flat fill."""
-    parts = [f'<rect width="{W}" height="{H}" fill="{CREAM}"/>']
-    # faint grid
-    parts.append('<g opacity="0.07" stroke="{}" stroke-width="0.22">'.format(NAVY))
-    step = 7.4
-    for x in [i * step for i in range(0, 22)]:
-        parts.append(f'<line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{H}"/>')
-    for y in [i * step for i in range(0, 30)]:
-        parts.append(f'<line x1="0" y1="{y:.2f}" x2="{W}" y2="{y:.2f}"/>')
+def background():
+    parts = [
+        f'<defs>'
+        f'<linearGradient id="wash" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0" stop-color="{NAVY}" stop-opacity="0.11"/>'
+        f'<stop offset="0.55" stop-color="{CYAN}" stop-opacity="0.05"/>'
+        f'<stop offset="1" stop-color="{CREAM}" stop-opacity="0"/>'
+        f'</linearGradient>'
+        f'<radialGradient id="glow" cx="72%" cy="28%" r="55%">'
+        f'<stop offset="0" stop-color="{LIME}" stop-opacity="0.10"/>'
+        f'<stop offset="0.45" stop-color="{CYAN}" stop-opacity="0.06"/>'
+        f'<stop offset="1" stop-color="{CREAM}" stop-opacity="0"/>'
+        f'</radialGradient>'
+        f'</defs>'
+        f'<rect width="{W}" height="{H}" fill="{CREAM}"/>'
+        f'<rect width="{W}" height="{H}" fill="url(#wash)"/>'
+        f'<rect width="{W}" height="{H}" fill="url(#glow)"/>'
+    ]
+
+    # dashboard grid — readable, not a notebook
+    parts.append(f'<g stroke="{NAVY}" fill="none">')
+    step = 8.0
+    for i, x in enumerate([i * step for i in range(0, 20)]):
+        op = 0.16 if i % 4 == 0 else 0.09
+        sw = 0.38 if i % 4 == 0 else 0.22
+        parts.append(f'<line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{H}" stroke-width="{sw}" opacity="{op}"/>')
+    for i, y in enumerate([i * step for i in range(0, 28)]):
+        op = 0.16 if i % 4 == 0 else 0.09
+        sw = 0.38 if i % 4 == 0 else 0.22
+        parts.append(f'<line x1="0" y1="{y:.2f}" x2="{W}" y2="{y:.2f}" stroke-width="{sw}" opacity="{op}"/>')
     parts.append("</g>")
-    # faint radar arcs, top-right
-    parts.append('<g fill="none" stroke="{}" stroke-width="0.35" opacity="0.07">'.format(NAVY))
-    for r in (40, 62, 86, 112):
-        parts.append(f'<circle cx="148" cy="0" r="{r}"/>')
+
+    # radar / range rings from the hanging corner
+    parts.append(f'<g fill="none" stroke="{CYAN}" stroke-width="0.45">')
+    for r, op in ((36, 0.16), (58, 0.13), (84, 0.11), (112, 0.09)):
+        parts.append(f'<circle cx="148" cy="-2" r="{r}" opacity="{op}"/>')
     parts.append("</g>")
-    # faint data-stream polylines
+
+    # data streams
     parts.append(
-        f'<path d="M -4 168 C 30 150, 50 190, 80 172 S 130 155, 160 178" fill="none" '
-        f'stroke="{CYAN}" stroke-width="0.6" opacity="0.08"/>'
+        f'<path d="M -6 36 C 28 58, 52 18, 84 42 S 124 64, 154 28" fill="none" '
+        f'stroke="{CYAN}" stroke-width="0.7" opacity="0.22"/>'
     )
     parts.append(
-        f'<path d="M -4 40 C 25 55, 48 22, 78 38 S 120 58, 160 30" fill="none" '
-        f'stroke="{NAVY}" stroke-width="0.5" opacity="0.06"/>'
+        f'<path d="M -6 92 C 34 70, 60 118, 96 96 S 128 78, 154 108" fill="none" '
+        f'stroke="{NAVY}" stroke-width="0.55" opacity="0.16"/>'
     )
-    # seeded micro-nodes
-    rng = random.Random(2027)
+    parts.append(
+        f'<path d="M 8 202 C 46 194, 88 206, 154 198" fill="none" '
+        f'stroke="{LIME}" stroke-width="0.5" opacity="0.18"/>'
+    )
+
+    # constellation — a real graph in the field, not random dust
+    nodes = [
+        (18, 28, LIME),
+        (32, 48, CYAN),
+        (22, 72, NAVY),
+        (44, 22, YELLOW),
+        (40, 96, MAGENTA),
+        (28, 118, CYAN),
+        (58, 14, CYAN),
+        (70, 54, NAVY),
+        (88, 18, LIME),
+        (102, 62, CYAN),
+        (118, 14, YELLOW),
+        (132, 48, MAGENTA),
+        (142, 86, CYAN),
+        (54, 132, LIME),
+        (16, 132, NAVY),
+        (128, 132, LIME),
+        (8, 52, MAGENTA),
+        (96, 132, CYAN),
+        (140, 198, YELLOW),
+        (80, 200, CYAN),
+    ]
+    edges = [
+        (0, 1), (1, 2), (0, 3), (1, 4), (2, 4), (4, 5), (3, 6), (6, 8),
+        (7, 8), (7, 9), (8, 10), (9, 11), (11, 12), (5, 13), (5, 14),
+        (12, 15), (2, 16), (13, 17), (9, 7), (1, 7), (18, 19),
+    ]
     parts.append("<g>")
-    for _ in range(70):
-        x, y = rng.uniform(4, W - 4), rng.uniform(4, H - 4)
-        r = rng.choice((0.35, 0.45, 0.6))
-        col = CYAN if rng.random() > 0.55 else NAVY
-        parts.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{r}" fill="{col}" opacity="0.10"/>')
+    for a, b in edges:
+        x1, y1, _ = nodes[a]
+        x2, y2, _ = nodes[b]
+        parts.append(
+            f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
+            f'stroke="{NAVY}" stroke-width="0.5" opacity="0.28"/>'
+        )
+    for x, y, c in nodes:
+        parts.append(f'<circle cx="{x}" cy="{y}" r="1.25" fill="{c}" opacity="0.80"/>')
+        parts.append(f'<circle cx="{x}" cy="{y}" r="2.6" fill="none" stroke="{c}" stroke-width="0.35" opacity="0.40"/>')
+    parts.append("</g>")
+
+    # brand tesserae — quiet pixels of the logo
+    rng = random.Random(2027)
+    palette = [CYAN, LIME, MAGENTA, YELLOW, NAVY]
+    parts.append("<g>")
+    for _ in range(26):
+        x, y = rng.uniform(6, W - 6), rng.uniform(6, 138)
+        if 12 < x < 132 and 148 < y < 178:
+            continue
+        s = rng.choice((1.1, 1.4, 1.8))
+        c = palette[rng.randrange(len(palette))]
+        parts.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{s}" height="{s}" fill="{c}" opacity="0.40"/>')
     parts.append("</g>")
     return "".join(parts)
 
 
 def front_svg() -> str:
-    g = [subtle_background()]
+    g = [background()]
 
-    # --- hanging ornaments (right-weighted, like the reference) ---
-    # (x, hang_end, color)
-    def bauble_hang(cy, r):
+    def cap(cy, r):
         return cy - r - r * 0.28 + 0.4
 
-    ornaments = [
-        # x, hang_y, color, drawer
-        (76, bauble_hang(40, 9.2), NAVY, lambda: bauble(76, 40, 9.2, NAVY, "graph")),
-        (98, 20.0, CYAN, lambda: tree(98, 20, 16, CYAN)),
-        (116, 40 - 13.5 / 2, NAVY, lambda: gift(116, 40, 13.5, NAVY, True)),
-        (134, 28 - 8.2, CYAN, lambda: snowflake(134, 28, 8.2, CYAN, 0.8)),
-        (84, bauble_hang(94, 8.4), CYAN, lambda: bauble(84, 94, 8.4, CYAN, "gauge")),
-        (104, 72.0, NAVY, lambda: tree(104, 72, 15, NAVY)),
-        (124, 102 - 12.2 / 2, CYAN, lambda: gift(124, 102, 12.2, CYAN, True)),
-        (138, bauble_hang(78, 7.6), NAVY, lambda: bauble(138, 78, 7.6, NAVY, "chip")),
-        (68, 108 - 10 * 0.42, NAVY, lambda: node_cluster(68, 108, 10, NAVY)),
-        (99, 118 - 6.4, NAVY, lambda: snowflake(99, 118, 6.4, NAVY, 0.65)),
+    # hanging cluster — navy as the body, lime/magenta/yellow as the holiday accent
+    pieces = [
+        (52, cap(42, 9.4), NAVY, lambda: bauble(52, 42, 9.4, NAVY, LIME, "graph")),
+        (74, 18.0, LIME, lambda: tree(74, 18, 17.5, LIME)),
+        (96, 42 - 14.2 / 2, NAVY, lambda: gift(96, 42, 14.2, NAVY, YELLOW)),
+        (118, 26 - 8.6, MAGENTA, lambda: snowflake(118, 26, 8.6, MAGENTA, 0.85)),
+        (136, 20.0, CYAN, lambda: tree(136, 20, 14.5, CYAN)),
+        (62, cap(96, 8.6), CYAN, lambda: bauble(62, 96, 8.6, CYAN, MAGENTA, "gauge")),
+        (84, 68.0, NAVY, lambda: tree(84, 68, 15.5, NAVY)),
+        (108, 100 - 12.8 / 2, MAGENTA, lambda: gift(108, 100, 12.8, MAGENTA, YELLOW)),
+        (130, cap(78, 7.8), NAVY, lambda: bauble(130, 78, 7.8, NAVY, LIME, "chip")),
     ]
-    for x, hang_y, c, draw in ornaments:
-        g.append(hang(x, hang_y, c))
+    for x, hang_y, c, draw in pieces:
+        g.append(hang(x, hang_y, c, 0.42))
         g.append(draw())
 
-    # stars / sparks
-    stars = [
-        (64, 34, 2.1, CYAN),
-        (84, 58, 1.6, NAVY),
-        (118, 26, 1.8, NAVY),
-        (140, 48, 2.3, CYAN),
-        (70, 72, 1.4, CYAN),
-        (96, 48, 1.5, CYAN),
-        (130, 92, 1.7, NAVY),
-        (108, 102, 1.3, CYAN),
-        (60, 118, 1.8, NAVY),
-        (140, 118, 1.5, CYAN),
-        (76, 132, 1.2, NAVY),
-        (52, 88, 1.4, CYAN),
-        (44, 40, 1.1, NAVY),
-        (56, 54, 0.9, CYAN),
+    # lower pieces sit in the field — no strings through the greeting
+    g.append(node_cluster(44, 108, 11, (LIME, CYAN, MAGENTA)))
+    g.append(snowflake(90, 118, 6.6, CYAN, 0.7))
+    g.append(snowflake(72, 128, 5.4, LIME, 0.6))
+
+    sparks = [
+        (40, 32, 2.2, YELLOW),
+        (66, 22, 1.7, LIME),
+        (88, 48, 1.6, MAGENTA),
+        (110, 18, 2.0, YELLOW),
+        (142, 44, 1.8, LIME),
+        (56, 68, 1.5, CYAN),
+        (78, 58, 1.4, YELLOW),
+        (122, 56, 1.7, CYAN),
+        (140, 100, 1.6, MAGENTA),
+        (38, 88, 1.5, LIME),
+        (50, 128, 1.8, YELLOW),
+        (102, 128, 1.4, LIME),
+        (128, 122, 1.5, YELLOW),
+        (28, 44, 1.2, MAGENTA),
+        (20, 100, 1.3, CYAN),
+        (148 - 10, 132, 1.4, LIME),
+        (98, 78, 1.3, YELLOW),
+        (70, 110, 1.2, MAGENTA),
     ]
-    for x, y, r, c in stars:
+    for x, y, r, c in sparks:
         g.append(star(x, y, r, c))
-    # tiny dots like the reference
-    rng = random.Random(7)
-    for _ in range(18):
-        x, y = rng.uniform(50, 144), rng.uniform(12, 140)
-        c = CYAN if rng.random() > 0.5 else NAVY
-        g.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="0.55" fill="{c}" opacity="0.7"/>')
 
-    # greeting — large italic С, then the line
-    g.append(t(22, 168, "С", 28, CYAN, "Noto Serif Display", "700", "start", -0.8, italic=True))
-    g.append(t(42, 166, "Новым годом!", 11.5, NAVY, "Noto Serif Display", "700", "start", -0.15, italic=True))
-    g.append(t(42, 176, "ясных данных и спокойных релизов", 4.4, CYAN, "Inter", "500", "start", 0.35))
+    # greeting sits in the composition, like the reference — not on a blank bottom
+    g.append(t(16, 164, "С", 30, MAGENTA, "Noto Serif Display", "700", "start", -0.8, italic=True))
+    g.append(t(38, 162, "Новым годом!", 12.2, NAVY, "Noto Serif Display", "700", "start", -0.12, italic=True))
+    g.append(t(38, 172.4, "ясных данных и спокойных релизов", 4.5, CYAN, "Inter", "500", "start", 0.38))
 
-    g.append(logo_image(12, 192, 9.2))
+    g.append(logo_image(12, 192, 9.4))
     return svg_wrap("\n".join(g), "Lasmart — открытка 2027, лицевая")
-
-
-def back_svg() -> str:
-    g = [subtle_background()]
-    # a few quiet hanging pieces
-    g.append(hang(112, 22, CYAN, 0.3))
-    g.append(hang(124, 18, NAVY, 0.3))
-    g.append(hang(136, 26, CYAN, 0.3))
-    g.append(snowflake(112, 30, 6, CYAN, 0.7))
-    g.append(star(124, 22, 2.0, NAVY))
-    g.append(bauble(136, 36, 6.5, NAVY, "graph"))
-    g.append(star(100, 28, 1.4, CYAN))
-    g.append(star(142, 52, 1.6, NAVY))
-
-    g.append(t(W / 2, 88, "С новым годом", 10, NAVY, "Noto Serif Display", "700", "middle", 0.1, italic=True))
-    lines = [
-        "Спасибо, что доверяете нам",
-        "данные, процессы и решения.",
-        "",
-        "Пусть в 2027 всё важное",
-        "будет на виду.",
-    ]
-    y = 108
-    for line in lines:
-        if line:
-            g.append(t(W / 2, y, line, 5.2, NAVY, "Inter", "400", "middle", 0.12))
-        y += 8.2
-    g.append(t(W / 2, 196, "lasmart.ru", 4.0, CYAN, "Inter", "500", "middle", 0.8))
-    return svg_wrap("\n".join(g), "Lasmart — открытка 2027, оборот")
 
 
 FONT_FOR = {
@@ -448,39 +477,27 @@ def outline_text(source: Path, target: Path) -> None:
 
 def export():
     front = ROOT / "lasmart-2027-front.svg"
-    back = ROOT / "lasmart-2027-back.svg"
     front_print = ROOT / "lasmart-2027-front-print.svg"
-    back_print = ROOT / "lasmart-2027-back-print.svg"
     front.write_text(front_svg(), encoding="utf-8")
-    back.write_text(back_svg(), encoding="utf-8")
     outline_text(front, front_print)
-    outline_text(back, back_print)
 
-    # ~300 dpi: 148mm → 1748 px, 210mm → 2480 px
     front_png = ROOT / "lasmart-2027-front.png"
-    back_png = ROOT / "lasmart-2027-back.png"
     cairosvg.svg2png(url=str(front_print), write_to=str(front_png), output_width=1748, output_height=2480)
-    cairosvg.svg2png(url=str(back_print), write_to=str(back_png), output_width=1748, output_height=2480)
-
     front_pdf = ROOT / "lasmart-2027-front.pdf"
-    back_pdf = ROOT / "lasmart-2027-back.pdf"
     cairosvg.svg2pdf(url=str(front_print), write_to=str(front_pdf))
-    cairosvg.svg2pdf(url=str(back_print), write_to=str(back_pdf))
 
-    from pypdf import PdfWriter, PdfReader
-
-    writer = PdfWriter()
-    writer.append(PdfReader(str(front_pdf)))
-    writer.append(PdfReader(str(back_pdf)))
-    combined = ROOT / "lasmart-2027-otkrytka.pdf"
-    with combined.open("wb") as f:
-        writer.write(f)
+    # keep hanging copies in sync
+    HANGING.mkdir(exist_ok=True)
+    for src in (front, front_print, front_png, front_pdf):
+        shutil.copy2(src, HANGING / src.name)
 
     artifacts = Path("/opt/cursor/artifacts")
     artifacts.mkdir(parents=True, exist_ok=True)
-    for src in (front_png, back_png, combined, front_print, back_print):
+    preview = ROOT / "lasmart-2027-front-preview.png"
+    Image.open(front_png).resize((874, 1240), Image.Resampling.LANCZOS).save(preview, "PNG")
+    for src in (front_png, front_pdf, front_print, preview):
         shutil.copy2(src, artifacts / src.name)
-    print("wrote", combined)
+    print("front", front_png, Image.open(front_png).size)
 
 
 if __name__ == "__main__":
