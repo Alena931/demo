@@ -249,11 +249,10 @@ def wool_path(rx, ry, n=10, bump=0.20):
 
 
 def sheep(cx, cy, s, fill, stroke, facing=1, hop=0):
-    """Tiny cartoon sheep like the reference: round fleece, face, stubby legs."""
+    """Tiny cartoon sheep: round fleece, floppy ears, puff tail, stubby legs."""
     sw = max(0.38, s * 0.05)
     rx, ry = s * 0.50, s * 0.40
     g = [f'<g transform="translate({cx:.2f} {cy:.2f}) scale({facing},1)">']
-    # legs first, under the fleece
     lift = s * 0.06 * hop
     legs = [
         (-0.28, 0.38, 0.11, 0.18),
@@ -267,26 +266,39 @@ def sheep(cx, cy, s, fill, stroke, facing=1, hop=0):
             f'<rect x="{s*lx - s*lw/2:.2f}" y="{y:.2f}" width="{s*lw:.2f}" height="{s*lh:.2f}" '
             f'rx="{s*0.05:.2f}" fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
         )
+    # tail — small wool puff peeking from the rear
+    tx, ty = s * -0.62, s * 0.02
+    g.append(
+        f'<circle cx="{tx:.2f}" cy="{ty:.2f}" r="{s*0.14:.2f}" fill="{fill}" '
+        f'stroke="{stroke}" stroke-width="{sw:.2f}"/>'
+    )
+    g.append(
+        f'<circle cx="{tx - s*0.06:.2f}" cy="{ty - s*0.08:.2f}" r="{s*0.09:.2f}" fill="{fill}" '
+        f'stroke="{stroke}" stroke-width="{sw:.2f}"/>'
+    )
     # fleece
     g.append(
         f'<path d="{wool_path(rx, ry, n=10, bump=0.22)}" fill="{fill}" '
         f'stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linejoin="round"/>'
     )
-    # ears
+    # floppy ears — hang down from the sides of the head, drawn behind it
+    ear_l = (s * 0.32, s * 0.14)
+    ear_r = (s * 0.74, s * 0.12)
     g.append(
-        f'<ellipse cx="{s*0.42:.2f}" cy="{s*-0.22:.2f}" rx="{s*0.08:.2f}" ry="{s*0.12:.2f}" '
-        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
+        f'<ellipse cx="{ear_l[0]:.2f}" cy="{ear_l[1]:.2f}" rx="{s*0.08:.2f}" ry="{s*0.18:.2f}" '
+        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}" '
+        f'transform="rotate(32 {ear_l[0]:.2f} {ear_l[1]:.2f})"/>'
     )
     g.append(
-        f'<ellipse cx="{s*0.62:.2f}" cy="{s*-0.18:.2f}" rx="{s*0.07:.2f}" ry="{s*0.11:.2f}" '
-        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
+        f'<ellipse cx="{ear_r[0]:.2f}" cy="{ear_r[1]:.2f}" rx="{s*0.08:.2f}" ry="{s*0.17:.2f}" '
+        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}" '
+        f'transform="rotate(-38 {ear_r[0]:.2f} {ear_r[1]:.2f})"/>'
     )
     # head
     g.append(
         f'<ellipse cx="{s*0.52:.2f}" cy="{s*0.02:.2f}" rx="{s*0.24:.2f}" ry="{s*0.22:.2f}" '
         f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
     )
-    # eyes + smile
     eye = max(0.28, s * 0.035)
     g.append(f'<circle cx="{s*0.46:.2f}" cy="{s*-0.02:.2f}" r="{eye:.2f}" fill="{stroke}"/>')
     g.append(f'<circle cx="{s*0.60:.2f}" cy="{s*-0.00:.2f}" r="{eye:.2f}" fill="{stroke}"/>')
