@@ -231,47 +231,69 @@ def node_cluster(cx, cy, s, colors):
     return "".join(parts)
 
 
-def cloud_goat(cx, cy, s, fill, stroke, facing=1, tilt=-12):
-    """One puff of cloud, with goat horns, leaping along a drift."""
-    sw = max(0.42, s * 0.048)
-    body = (
-        f"M {s*-0.72:.2f} {s*0.10:.2f} "
-        f"C {s*-0.78:.2f} {s*-0.18:.2f} {s*-0.42:.2f} {s*-0.42:.2f} {s*-0.18:.2f} {s*-0.22:.2f} "
-        f"C {s*-0.02:.2f} {s*-0.50:.2f} {s*0.38:.2f} {s*-0.46:.2f} {s*0.48:.2f} {s*-0.16:.2f} "
-        f"C {s*0.78:.2f} {s*-0.28:.2f} {s*0.92:.2f} {s*0.10:.2f} {s*0.62:.2f} {s*0.22:.2f} "
-        f"C {s*0.40:.2f} {s*0.40:.2f} {s*-0.08:.2f} {s*0.42:.2f} {s*-0.32:.2f} {s*0.26:.2f} "
-        f"C {s*-0.58:.2f} {s*0.38:.2f} {s*-0.82:.2f} {s*0.28:.2f} {s*-0.72:.2f} {s*0.10:.2f} Z"
-    )
-    g = [f'<g transform="translate({cx:.2f} {cy:.2f}) rotate({tilt}) scale({facing},1)">']
-    g.append(f'<path d="{body}" fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linejoin="round"/>')
-    # snout
+def wool_path(rx, ry, n=10, bump=0.20):
+    """Scalloped ellipse — cartoon sheep fleece."""
+    cmds = []
+    for i in range(n):
+        a0 = -math.pi / 2 + 2 * math.pi * i / n
+        a1 = -math.pi / 2 + 2 * math.pi * (i + 0.5) / n
+        a2 = -math.pi / 2 + 2 * math.pi * (i + 1) / n
+        x0, y0 = rx * math.cos(a0), ry * math.sin(a0)
+        x1, y1 = (1 + bump) * rx * math.cos(a1), (1 + bump) * ry * math.sin(a1)
+        x2, y2 = rx * math.cos(a2), ry * math.sin(a2)
+        if i == 0:
+            cmds.append(f"M {x0:.2f} {y0:.2f}")
+        cmds.append(f"Q {x1:.2f} {y1:.2f} {x2:.2f} {y2:.2f}")
+    cmds.append("Z")
+    return " ".join(cmds)
+
+
+def sheep(cx, cy, s, fill, stroke, facing=1, hop=0):
+    """Tiny cartoon sheep like the reference: round fleece, face, stubby legs."""
+    sw = max(0.38, s * 0.05)
+    rx, ry = s * 0.50, s * 0.40
+    g = [f'<g transform="translate({cx:.2f} {cy:.2f}) scale({facing},1)">']
+    # legs first, under the fleece
+    lift = s * 0.06 * hop
+    legs = [
+        (-0.28, 0.38, 0.11, 0.18),
+        (-0.08, 0.40, 0.11, 0.16),
+        (0.10, 0.38, 0.11, 0.18),
+        (0.30, 0.36, 0.11, 0.16),
+    ]
+    for lx, ly, lw, lh in legs:
+        y = s * ly - lift
+        g.append(
+            f'<rect x="{s*lx - s*lw/2:.2f}" y="{y:.2f}" width="{s*lw:.2f}" height="{s*lh:.2f}" '
+            f'rx="{s*0.05:.2f}" fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
+        )
+    # fleece
     g.append(
-        f'<ellipse cx="{s*0.70:.2f}" cy="{s*-0.02:.2f}" rx="{s*0.15:.2f}" ry="{s*0.10:.2f}" '
+        f'<path d="{wool_path(rx, ry, n=10, bump=0.22)}" fill="{fill}" '
+        f'stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linejoin="round"/>'
+    )
+    # ears
+    g.append(
+        f'<ellipse cx="{s*0.42:.2f}" cy="{s*-0.22:.2f}" rx="{s*0.08:.2f}" ry="{s*0.12:.2f}" '
         f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
     )
-    # horns sweep back over the cloud
     g.append(
-        f'<path d="M {s*0.38:.2f} {s*-0.28:.2f} C {s*0.28:.2f} {s*-0.55:.2f} {s*0.50:.2f} {s*-0.66:.2f} {s*0.60:.2f} {s*-0.48:.2f}" '
-        f'fill="none" stroke="{stroke}" stroke-width="{sw*1.4:.2f}" stroke-linecap="round"/>'
+        f'<ellipse cx="{s*0.62:.2f}" cy="{s*-0.18:.2f}" rx="{s*0.07:.2f}" ry="{s*0.11:.2f}" '
+        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
     )
+    # head
     g.append(
-        f'<path d="M {s*0.50:.2f} {s*-0.30:.2f} C {s*0.48:.2f} {s*-0.58:.2f} {s*0.70:.2f} {s*-0.68:.2f} {s*0.78:.2f} {s*-0.46:.2f}" '
-        f'fill="none" stroke="{stroke}" stroke-width="{sw*1.4:.2f}" stroke-linecap="round"/>'
+        f'<ellipse cx="{s*0.52:.2f}" cy="{s*0.02:.2f}" rx="{s*0.24:.2f}" ry="{s*0.22:.2f}" '
+        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
     )
-    # leap
+    # eyes + smile
+    eye = max(0.28, s * 0.035)
+    g.append(f'<circle cx="{s*0.46:.2f}" cy="{s*-0.02:.2f}" r="{eye:.2f}" fill="{stroke}"/>')
+    g.append(f'<circle cx="{s*0.60:.2f}" cy="{s*-0.00:.2f}" r="{eye:.2f}" fill="{stroke}"/>')
     g.append(
-        f'<path d="M {s*-0.12:.2f} {s*0.28:.2f} Q {s*-0.02:.2f} {s*0.46:.2f} {s*0.12:.2f} {s*0.38:.2f}" '
+        f'<path d="M {s*0.46:.2f} {s*0.10:.2f} Q {s*0.56:.2f} {s*0.18:.2f} {s*0.66:.2f} {s*0.10:.2f}" '
         f'fill="none" stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linecap="round"/>'
     )
-    g.append(
-        f'<path d="M {s*0.10:.2f} {s*0.30:.2f} Q {s*0.22:.2f} {s*0.50:.2f} {s*0.32:.2f} {s*0.36:.2f}" '
-        f'fill="none" stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linecap="round"/>'
-    )
-    g.append(
-        f'<path d="M {s*0.28:.2f} {s*0.26:.2f} Q {s*0.40:.2f} {s*0.44:.2f} {s*0.28:.2f} {s*0.50:.2f}" '
-        f'fill="none" stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linecap="round"/>'
-    )
-    g.append(f'<circle cx="{s*0.58:.2f}" cy="{s*-0.12:.2f}" r="{max(0.3, s*0.04):.2f}" fill="{stroke}"/>')
     g.append("</g>")
     return "".join(g)
 
@@ -371,24 +393,22 @@ def front_svg() -> str:
     for x, y, r, c in sparks:
         g.append(star(x, y, r, c))
 
-    # tiny cloud-goats leaping along the drift ridges
-    cloud = "#FFFcf7"
-    goats = [
-        (28, 50, 7.2, cloud, NAVY, 1, -14),
-        (18, 86, 6.6, cloud, CYAN, -1, -8),
-        (30, 112, 6.2, cloud, LIME, 1, -18),
-        (64, 176, 9.4, cloud, NAVY, 1, -14),
-        (118, 172, 8.2, cloud, MAGENTA, -1, -10),
-        (58, 194, 8.0, cloud, NAVY, -1, -6),
-        (96, 190, 9.8, cloud, NAVY, 1, -16),
-        (134, 196, 7.6, cloud, LIME, -1, -12),
+    wool = "#FFFcf7"
+    flock = [
+        (28, 48, 8.4, wool, NAVY, 1, 1),
+        (18, 84, 7.6, wool, CYAN, -1, 0),
+        (32, 110, 7.2, wool, LIME, 1, 1),
+        (64, 176, 10.6, wool, NAVY, 1, 0),
+        (118, 171, 9.4, wool, MAGENTA, -1, 1),
+        (58, 194, 8.8, wool, NAVY, -1, 0),
+        (96, 189, 11.0, wool, NAVY, 1, 1),
+        (134, 196, 8.4, wool, LIME, -1, 0),
     ]
-    for x, y, s, fill, stroke, facing, tilt in goats:
-        g.append(cloud_goat(x, y, s, fill, stroke, facing, tilt))
+    for x, y, s, fill, stroke, facing, hop in flock:
+        g.append(sheep(x, y, s, fill, stroke, facing, hop))
 
-    g.append(t(16, 154, "С", 30, MAGENTA, "Noto Serif Display", "700", "start", -0.8, italic=True))
-    g.append(t(38, 152, "Новым годом!", 12.2, NAVY, "Noto Serif Display", "700", "start", -0.12, italic=True))
-    g.append(t(38, 162.5, "ясных данных и спокойных релизов", 4.5, CYAN, "Inter", "500", "start", 0.38))
+    g.append(t(16, 156, "С", 30, MAGENTA, "Noto Serif Display", "700", "start", -0.8, italic=True))
+    g.append(t(38, 154, "Новым годом!", 12.2, NAVY, "Noto Serif Display", "700", "start", -0.12, italic=True))
 
     g.append(logo_image(10, 186, 9.0))
     return svg_wrap("\n".join(g), "Lasmart — открытка 2027, лицевая")
