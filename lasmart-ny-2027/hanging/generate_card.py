@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import base64
 import math
-import random
 import shutil
+from collections import deque
 from html import escape
 from io import BytesIO
 from pathlib import Path
 import xml.etree.ElementTree as ET
+
+import numpy as np
 
 import cairosvg
 from fontTools.pens.svgPathPen import SVGPathPen
@@ -238,31 +240,39 @@ def _hex_rgb(color: str) -> tuple[int, int, int]:
 
 
 def sheep_sprite(stroke: str, flip: bool = False) -> Image.Image:
-    """The original doodle, white knocked out, ink tinted to a brand color."""
+    """Original doodle: opaque fleece, only the paper around it is transparent."""
     src = Image.open(SHEEP_REF).convert("RGBA")
     src = src.resize((src.width * 4, src.height * 4), Image.Resampling.LANCZOS)
-    ink = _hex_rgb(stroke)
-    px = src.load()
-    w, h = src.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a == 0:
-                continue
-            lum = (r + g + b) / 3
-            if lum >= 250:
-                px[x, y] = (255, 255, 255, 0)
-            elif lum < 175:
-                px[x, y] = (*ink, 255)
-            else:
-                t = (250 - lum) / 75
-                px[x, y] = (*ink, int(255 * min(1.0, t)))
-    bbox = src.getbbox()
+    arr = np.array(src)
+    h, w = arr.shape[:2]
+    lum = arr[:, :, :3].astype(np.float32).mean(axis=2)
+    exterior = np.zeros((h, w), dtype=bool)
+    q = deque()
+    for x, y in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)):
+        exterior[y, x] = True
+        q.append((x, y))
+    while q:
+        x, y = q.popleft()
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < w and 0 <= ny < h and not exterior[ny, nx] and lum[ny, nx] >= 232:
+                exterior[ny, nx] = True
+                q.append((nx, ny))
+    ink = np.array([*_hex_rgb(stroke), 255], dtype=np.uint8)
+    wool = np.array([255, 252, 247, 255], dtype=np.uint8)
+    out = np.zeros_like(arr)
+    inside = ~exterior
+    out[inside] = wool
+    out[inside & (lum < 228)] = ink
+    im = Image.fromarray(out, "RGBA")
+    bbox = im.getbbox()
     if bbox:
-        src = src.crop(bbox)
+        pad = 10
+        im = im.crop(bbox)
+        im = ImageOps.expand(im, border=pad, fill=(0, 0, 0, 0))
     if flip:
-        src = ImageOps.mirror(src)
-    return src
+        im = ImageOps.mirror(im)
+    return im
 
 
 def sheep_image(cx, baseline, height_mm, stroke, flip=False) -> str:
@@ -310,18 +320,11 @@ def background():
             f'stroke-linecap="round" opacity="{op}"/>'
         )
 
-    # filled сугробы — layered hills under the greeting, covering the old empty bottom
+    # one snow field, two peaks — sheep sit on the crests, not across the stroke
     parts.append(
-        f'<path d="M -10 174 C 22 160, 52 186, 86 170 S 120 158, 160 172 L 160 {H+4} L -10 {H+4} Z" '
-        f'fill="{snow_3}" stroke="{CYAN}" stroke-width="0.95"/>'
-    )
-    parts.append(
-        f'<path d="M -10 188 C 28 176, 58 200, 94 182 S 126 174, 160 186 L 160 {H+4} L -10 {H+4} Z" '
-        f'fill="{snow_2}" stroke="{NAVY}" stroke-width="0.8"/>'
-    )
-    parts.append(
-        f'<path d="M -10 {H} C 20 196, 70 210, 110 198 S 140 196, 160 {H} L 160 {H+4} L -10 {H+4} Z" '
-        f'fill="{snow_2}" stroke="{CYAN}" stroke-width="0.6"/>'
+        f'<path d="M -10 190 C 22 184, 44 176, 68 178 C 86 180, 98 190, 108 186 '
+        f'C 118 180, 122 172, 128 174 C 142 178, 152 188, 162 190 L 162 {H+4} L -10 {H+4} Z" '
+        f'fill="{snow_2}" stroke="{CYAN}" stroke-width="1.05"/>'
     )
     return "".join(parts)
 
@@ -376,10 +379,10 @@ def front_svg() -> str:
     for x, y, r, c in sparks:
         g.append(star(x, y, r, c))
 
-    # three original-drawing sheep, larger, sitting on the drifts
-    g.append(sheep_image(24, 90, 14.5, CYAN, flip=False))
-    g.append(sheep_image(70, 182, 22.0, NAVY, flip=False))
-    g.append(sheep_image(122, 176, 17.5, MAGENTA, flip=True))
+    # three original-drawing sheep, sitting on drift peaks
+    g.append(sheep_image(22, 83.2, 13.5, CYAN, flip=False))
+    g.append(sheep_image(68, 178.0, 20.0, NAVY, flip=False))
+    g.append(sheep_image(128, 174.0, 16.5, MAGENTA, flip=True))
 
     g.append(t(16, 156, "С", 30, MAGENTA, "Noto Serif Display", "700", "start", -0.8, italic=True))
     g.append(t(38, 154, "Новым годом!", 12.2, NAVY, "Noto Serif Display", "700", "start", -0.12, italic=True))
