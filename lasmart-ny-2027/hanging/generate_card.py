@@ -231,111 +231,93 @@ def node_cluster(cx, cy, s, colors):
     return "".join(parts)
 
 
+def cloud_goat(cx, cy, s, fill, stroke, facing=1, tilt=-12):
+    """One puff of cloud, with goat horns, leaping along a drift."""
+    sw = max(0.42, s * 0.048)
+    body = (
+        f"M {s*-0.72:.2f} {s*0.10:.2f} "
+        f"C {s*-0.78:.2f} {s*-0.18:.2f} {s*-0.42:.2f} {s*-0.42:.2f} {s*-0.18:.2f} {s*-0.22:.2f} "
+        f"C {s*-0.02:.2f} {s*-0.50:.2f} {s*0.38:.2f} {s*-0.46:.2f} {s*0.48:.2f} {s*-0.16:.2f} "
+        f"C {s*0.78:.2f} {s*-0.28:.2f} {s*0.92:.2f} {s*0.10:.2f} {s*0.62:.2f} {s*0.22:.2f} "
+        f"C {s*0.40:.2f} {s*0.40:.2f} {s*-0.08:.2f} {s*0.42:.2f} {s*-0.32:.2f} {s*0.26:.2f} "
+        f"C {s*-0.58:.2f} {s*0.38:.2f} {s*-0.82:.2f} {s*0.28:.2f} {s*-0.72:.2f} {s*0.10:.2f} Z"
+    )
+    g = [f'<g transform="translate({cx:.2f} {cy:.2f}) rotate({tilt}) scale({facing},1)">']
+    g.append(f'<path d="{body}" fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linejoin="round"/>')
+    # snout
+    g.append(
+        f'<ellipse cx="{s*0.70:.2f}" cy="{s*-0.02:.2f}" rx="{s*0.15:.2f}" ry="{s*0.10:.2f}" '
+        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw:.2f}"/>'
+    )
+    # horns sweep back over the cloud
+    g.append(
+        f'<path d="M {s*0.38:.2f} {s*-0.28:.2f} C {s*0.28:.2f} {s*-0.55:.2f} {s*0.50:.2f} {s*-0.66:.2f} {s*0.60:.2f} {s*-0.48:.2f}" '
+        f'fill="none" stroke="{stroke}" stroke-width="{sw*1.4:.2f}" stroke-linecap="round"/>'
+    )
+    g.append(
+        f'<path d="M {s*0.50:.2f} {s*-0.30:.2f} C {s*0.48:.2f} {s*-0.58:.2f} {s*0.70:.2f} {s*-0.68:.2f} {s*0.78:.2f} {s*-0.46:.2f}" '
+        f'fill="none" stroke="{stroke}" stroke-width="{sw*1.4:.2f}" stroke-linecap="round"/>'
+    )
+    # leap
+    g.append(
+        f'<path d="M {s*-0.12:.2f} {s*0.28:.2f} Q {s*-0.02:.2f} {s*0.46:.2f} {s*0.12:.2f} {s*0.38:.2f}" '
+        f'fill="none" stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linecap="round"/>'
+    )
+    g.append(
+        f'<path d="M {s*0.10:.2f} {s*0.30:.2f} Q {s*0.22:.2f} {s*0.50:.2f} {s*0.32:.2f} {s*0.36:.2f}" '
+        f'fill="none" stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linecap="round"/>'
+    )
+    g.append(
+        f'<path d="M {s*0.28:.2f} {s*0.26:.2f} Q {s*0.40:.2f} {s*0.44:.2f} {s*0.28:.2f} {s*0.50:.2f}" '
+        f'fill="none" stroke="{stroke}" stroke-width="{sw:.2f}" stroke-linecap="round"/>'
+    )
+    g.append(f'<circle cx="{s*0.58:.2f}" cy="{s*-0.12:.2f}" r="{max(0.3, s*0.04):.2f}" fill="{stroke}"/>')
+    g.append("</g>")
+    return "".join(g)
+
+
 def background():
+    snow = "#FFFbf5"
+    snow_2 = "#F3F6FA"
+    snow_3 = "#E7EEF6"
     parts = [
         f'<defs>'
         f'<linearGradient id="wash" x1="0" y1="0" x2="0" y2="1">'
-        f'<stop offset="0" stop-color="{NAVY}" stop-opacity="0.11"/>'
-        f'<stop offset="0.55" stop-color="{CYAN}" stop-opacity="0.05"/>'
-        f'<stop offset="1" stop-color="{CREAM}" stop-opacity="0"/>'
+        f'<stop offset="0" stop-color="{CYAN}" stop-opacity="0.07"/>'
+        f'<stop offset="0.45" stop-color="{CREAM}" stop-opacity="0"/>'
+        f'<stop offset="1" stop-color="{CYAN}" stop-opacity="0.04"/>'
         f'</linearGradient>'
-        f'<radialGradient id="glow" cx="72%" cy="28%" r="55%">'
-        f'<stop offset="0" stop-color="{LIME}" stop-opacity="0.10"/>'
-        f'<stop offset="0.45" stop-color="{CYAN}" stop-opacity="0.06"/>'
-        f'<stop offset="1" stop-color="{CREAM}" stop-opacity="0"/>'
-        f'</radialGradient>'
         f'</defs>'
         f'<rect width="{W}" height="{H}" fill="{CREAM}"/>'
         f'<rect width="{W}" height="{H}" fill="url(#wash)"/>'
-        f'<rect width="{W}" height="{H}" fill="url(#glow)"/>'
     ]
 
-    # dashboard grid — readable, not a notebook
-    parts.append(f'<g stroke="{NAVY}" fill="none">')
-    step = 8.0
-    for i, x in enumerate([i * step for i in range(0, 20)]):
-        op = 0.16 if i % 4 == 0 else 0.09
-        sw = 0.38 if i % 4 == 0 else 0.22
-        parts.append(f'<line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{H}" stroke-width="{sw}" opacity="{op}"/>')
-    for i, y in enumerate([i * step for i in range(0, 28)]):
-        op = 0.16 if i % 4 == 0 else 0.09
-        sw = 0.38 if i % 4 == 0 else 0.22
-        parts.append(f'<line x1="0" y1="{y:.2f}" x2="{W}" y2="{y:.2f}" stroke-width="{sw}" opacity="{op}"/>')
-    parts.append("</g>")
-
-    # radar / range rings from the hanging corner
-    parts.append(f'<g fill="none" stroke="{CYAN}" stroke-width="0.45">')
-    for r, op in ((36, 0.16), (58, 0.13), (84, 0.11), (112, 0.09)):
-        parts.append(f'<circle cx="148" cy="-2" r="{r}" opacity="{op}"/>')
-    parts.append("</g>")
-
-    # data streams
-    parts.append(
-        f'<path d="M -6 36 C 28 58, 52 18, 84 42 S 124 64, 154 28" fill="none" '
-        f'stroke="{CYAN}" stroke-width="0.7" opacity="0.22"/>'
-    )
-    parts.append(
-        f'<path d="M -6 92 C 34 70, 60 118, 96 96 S 128 78, 154 108" fill="none" '
-        f'stroke="{NAVY}" stroke-width="0.55" opacity="0.16"/>'
-    )
-    parts.append(
-        f'<path d="M 8 202 C 46 194, 88 206, 154 198" fill="none" '
-        f'stroke="{LIME}" stroke-width="0.5" opacity="0.18"/>'
-    )
-
-    # constellation — a real graph in the field, not random dust
-    nodes = [
-        (18, 28, LIME),
-        (32, 48, CYAN),
-        (22, 72, NAVY),
-        (44, 22, YELLOW),
-        (40, 96, MAGENTA),
-        (28, 118, CYAN),
-        (58, 14, CYAN),
-        (70, 54, NAVY),
-        (88, 18, LIME),
-        (102, 62, CYAN),
-        (118, 14, YELLOW),
-        (132, 48, MAGENTA),
-        (142, 86, CYAN),
-        (54, 132, LIME),
-        (16, 132, NAVY),
-        (128, 132, LIME),
-        (8, 52, MAGENTA),
-        (96, 132, CYAN),
-        (140, 198, YELLOW),
-        (80, 200, CYAN),
+    # distant rounded ridges — the old flowing lines, now snowdrift contours
+    ridges = [
+        (f"M -8 34 C 26 56, 54 16, 86 40 S 122 62, 156 26", CYAN, 1.15, 0.28),
+        (f"M -8 58 C 22 40, 48 72, 82 52 S 118 34, 156 54", NAVY, 0.85, 0.16),
+        (f"M -8 88 C 32 68, 62 112, 98 90 S 128 74, 156 96", CYAN, 1.05, 0.22),
+        (f"M -8 118 C 28 102, 60 136, 94 116 S 126 104, 156 122", NAVY, 0.8, 0.14),
     ]
-    edges = [
-        (0, 1), (1, 2), (0, 3), (1, 4), (2, 4), (4, 5), (3, 6), (6, 8),
-        (7, 8), (7, 9), (8, 10), (9, 11), (11, 12), (5, 13), (5, 14),
-        (12, 15), (2, 16), (13, 17), (9, 7), (1, 7), (18, 19),
-    ]
-    parts.append("<g>")
-    for a, b in edges:
-        x1, y1, _ = nodes[a]
-        x2, y2, _ = nodes[b]
+    for d, color, sw, op in ridges:
         parts.append(
-            f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-            f'stroke="{NAVY}" stroke-width="0.5" opacity="0.28"/>'
+            f'<path d="{d}" fill="none" stroke="{color}" stroke-width="{sw}" '
+            f'stroke-linecap="round" opacity="{op}"/>'
         )
-    for x, y, c in nodes:
-        parts.append(f'<circle cx="{x}" cy="{y}" r="1.25" fill="{c}" opacity="0.80"/>')
-        parts.append(f'<circle cx="{x}" cy="{y}" r="2.6" fill="none" stroke="{c}" stroke-width="0.35" opacity="0.40"/>')
-    parts.append("</g>")
 
-    # brand tesserae — quiet pixels of the logo
-    rng = random.Random(2027)
-    palette = [CYAN, LIME, MAGENTA, YELLOW, NAVY]
-    parts.append("<g>")
-    for _ in range(26):
-        x, y = rng.uniform(6, W - 6), rng.uniform(6, 138)
-        if 12 < x < 132 and 148 < y < 178:
-            continue
-        s = rng.choice((1.1, 1.4, 1.8))
-        c = palette[rng.randrange(len(palette))]
-        parts.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{s}" height="{s}" fill="{c}" opacity="0.40"/>')
-    parts.append("</g>")
+    # filled сугробы — layered hills under the greeting, covering the old empty bottom
+    parts.append(
+        f'<path d="M -10 174 C 22 160, 52 186, 86 170 S 120 158, 160 172 L 160 {H+4} L -10 {H+4} Z" '
+        f'fill="{snow_3}" stroke="{CYAN}" stroke-width="0.95"/>'
+    )
+    parts.append(
+        f'<path d="M -10 188 C 28 176, 58 200, 94 182 S 126 174, 160 186 L 160 {H+4} L -10 {H+4} Z" '
+        f'fill="{snow_2}" stroke="{NAVY}" stroke-width="0.8"/>'
+    )
+    parts.append(
+        f'<path d="M -10 {H} C 20 196, 70 210, 110 198 S 140 196, 160 {H} L 160 {H+4} L -10 {H+4} Z" '
+        f'fill="{snow_2}" stroke="{CYAN}" stroke-width="0.6"/>'
+    )
     return "".join(parts)
 
 
@@ -389,12 +371,26 @@ def front_svg() -> str:
     for x, y, r, c in sparks:
         g.append(star(x, y, r, c))
 
-    # greeting sits in the composition, like the reference — not on a blank bottom
-    g.append(t(16, 164, "С", 30, MAGENTA, "Noto Serif Display", "700", "start", -0.8, italic=True))
-    g.append(t(38, 162, "Новым годом!", 12.2, NAVY, "Noto Serif Display", "700", "start", -0.12, italic=True))
-    g.append(t(38, 172.4, "ясных данных и спокойных релизов", 4.5, CYAN, "Inter", "500", "start", 0.38))
+    # tiny cloud-goats leaping along the drift ridges
+    cloud = "#FFFcf7"
+    goats = [
+        (28, 50, 7.2, cloud, NAVY, 1, -14),
+        (18, 86, 6.6, cloud, CYAN, -1, -8),
+        (30, 112, 6.2, cloud, LIME, 1, -18),
+        (64, 176, 9.4, cloud, NAVY, 1, -14),
+        (118, 172, 8.2, cloud, MAGENTA, -1, -10),
+        (58, 194, 8.0, cloud, NAVY, -1, -6),
+        (96, 190, 9.8, cloud, NAVY, 1, -16),
+        (134, 196, 7.6, cloud, LIME, -1, -12),
+    ]
+    for x, y, s, fill, stroke, facing, tilt in goats:
+        g.append(cloud_goat(x, y, s, fill, stroke, facing, tilt))
 
-    g.append(logo_image(12, 192, 9.4))
+    g.append(t(16, 154, "С", 30, MAGENTA, "Noto Serif Display", "700", "start", -0.8, italic=True))
+    g.append(t(38, 152, "Новым годом!", 12.2, NAVY, "Noto Serif Display", "700", "start", -0.12, italic=True))
+    g.append(t(38, 162.5, "ясных данных и спокойных релизов", 4.5, CYAN, "Inter", "500", "start", 0.38))
+
+    g.append(logo_image(10, 186, 9.0))
     return svg_wrap("\n".join(g), "Lasmart — открытка 2027, лицевая")
 
 
