@@ -23,6 +23,14 @@ Navy-семейство (тот же цвет, светлее):
 
 Сетка: `pixel/lasmart-2027-pixel-compare.png`.
 
+Выбранная лицевая — сумерки / циан. Печатный комплект в `pixel/print/`:
+
+- `lasmart-2027-a5-148x210.pdf` — A5 148 × 210 мм
+- `lasmart-2027-a5-bleed-3mm.pdf` — с вылетом 3 мм
+- `lasmart-2027-a5-cropmarks.pdf` — с метками реза
+- `lasmart-2027-a5-300dpi.tif` / `.jpg` / `.png` — растр 300 dpi
+- `lasmart-2027-print.zip` — всё одним архивом
+
 ## Предыдущие концепции
 
 Висящая композиция: `hanging/`. Квадратная коза и зелёные фоны: `variants/`.
