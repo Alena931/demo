@@ -37,26 +37,40 @@ FONT_BODY = "/usr/share/fonts/truetype/macos/Inter-Regular.ttf"
 FONT_MED = "/usr/share/fonts/truetype/macos/Inter-Medium.ttf"
 FONT_SIGN = "/usr/share/fonts/truetype/noto/NotoSerifDisplay-Italic.ttf"
 
-# Same volume as 2026, new wording: IT, client bond, good wishes.
-SALUTATION = "Дорогие партнёры!"
-P1 = [
-    "Поздравляем с Новым годом!",
-    "Пусть 2027 принесёт ясность",
-    "в данных, лёгкость в решениях",
-    "и тепло в рабочих днях.",
+# Year on the card is 2027; source copy said 2026.
+VARIANTS = [
+    {
+        "id": "v1",
+        "slug": "friends",
+        "title": "Друзья и коллеги",
+        "salut": "Дорогие друзья и коллеги!",
+        "paragraphs": [
+            "От всей души поздравляем вас с Новым годом! Пусть наступающий 2027 год принесет в вашу жизнь и бизнес гармонию, вдохновение и новые возможности для профессионального роста.",
+            "Ваше доверие — это главный драйвер нашего развития. Спасибо, что разделяете с нами стремление к инновациям и готовность к экспериментам. Вместе мы не просто внедряем технологии, а создаем ту самую IT-реальность, в которой хочется жить и работать. Каждый ваш проект для нас — это ценный опыт и возможность преодолеть новые вызовы.",
+            "Желаем вам в новом году уверенности в завтрашнем\u00a0дне и неизменного успеха во всех начинаниях!",
+        ],
+        "sign": ["С наилучшими пожеланиями,", "Команда Lasmart"],
+    },
+    {
+        "id": "v2",
+        "slug": "updates",
+        "title": "Продуктивные апдейты",
+        "salut": None,
+        "paragraphs": [
+            "Команда Lasmart поздравляет вас с наступающим Новым годом! Пусть 2027 год станет для вас годом продуктивных апдейтов, стабильной работы и новых профессиональных высот.",
+            "Мы очень ценим ваше доверие и готовность идти в ногу с инновациями. Ваши идеи и задачи вдохновляют нас на создание качественных решений и помогают задавать новые стандарты в IT-индустрии. Вместе мы создаем прочную основу для будущего, где технологии работают на благо бизнеса и людей.",
+            "Желаем вам в новом году безотказных решений, широких возможностей и только положительных откликов во всех начинаниях!",
+        ],
+        "sign": ["С наилучшими пожеланиями,", "Команда Lasmart"],
+    },
 ]
-P2 = [
-    "С вами мы собираем из данных",
-    "цельную картину и делаем IT",
-    "опорой, а не фоном. Спасибо",
-    "за доверие смотреть так близко.",
-    "Эту честь бережём в каждой задаче.",
-]
-P3 = [
-    "Пусть год будет светлым,",
-    "а общее дело — в радость.",
-]
-SIGN = ["С наилучшими пожеланиями,", "команда Lasmart"]
+
+_CIRCUIT: Image.Image | None = None
+TEXT_WIDTH_MM = 102.0
+ORPHANS = {
+    "в", "и", "на", "с", "к", "о", "у", "а", "я", "во", "со", "ко",
+    "для", "от", "по", "из", "за", "не", "но", "об", "обо", "при",
+}
 
 
 def font(path: str, mm_size: float) -> ImageFont.FreeTypeFont:
@@ -188,6 +202,13 @@ def circuit_layer(scale: int = 2) -> Image.Image:
     return Image.fromarray(arr.astype(np.uint8), "RGBA")
 
 
+def get_circuit() -> Image.Image:
+    global _CIRCUIT
+    if _CIRCUIT is None:
+        _CIRCUIT = circuit_layer(scale=2)
+    return _CIRCUIT
+
+
 def paste_logo(card: Image.Image) -> None:
     logo = Image.open(LOGO).convert("RGBA")
     width_mm = 34.0
@@ -195,47 +216,92 @@ def paste_logo(card: Image.Image) -> None:
     h = int(round(w * logo.size[1] / logo.size[0]))
     logo = logo.resize((w, h), Image.Resampling.LANCZOS)
     x = (W - w) // 2
-    y = int(round(20 * PX))
+    y = int(round(18 * PX))
     card.alpha_composite(logo, (x, y))
 
 
-def center_text(draw: ImageDraw.ImageDraw, text: str, y_mm: float, fnt, fill) -> float:
-    x = W / 2
-    y = y_mm * PX
-    draw.text((x, y), text, font=fnt, fill=fill, anchor="ma")
-    bbox = fnt.getbbox(text)
-    return (bbox[3] - bbox[1]) / PX
+def wrap_line(text: str, fnt: ImageFont.FreeTypeFont, max_mm: float) -> list[str]:
+    max_px = max_mm * PX
+    words = [w for w in text.split(" ") if w]
+    lines: list[str] = []
+    cur: list[str] = []
+
+    def width(ws: list[str]) -> float:
+        return fnt.getlength(" ".join(ws))
+
+    i = 0
+    while i < len(words):
+        word = words[i]
+        trial = cur + [word]
+        if not cur or width(trial) <= max_px:
+            cur = trial
+            i += 1
+            continue
+        if len(cur) > 1 and cur[-1].lower().strip("—,.") in ORPHANS:
+            orphan = cur.pop()
+            lines.append(" ".join(cur))
+            cur = [orphan, word]
+            i += 1
+        else:
+            lines.append(" ".join(cur))
+            cur = [word]
+            i += 1
+    if cur:
+        lines.append(" ".join(cur))
+    return lines
 
 
-def block(draw, lines, y_mm, fnt, fill, leading_mm) -> float:
-    for line in lines:
-        center_text(draw, line, y_mm, fnt, fill)
-        y_mm += leading_mm
-    return y_mm
+def center_text(draw: ImageDraw.ImageDraw, text: str, y_mm: float, fnt, fill) -> None:
+    draw.text((W / 2, y_mm * PX), text, font=fnt, fill=fill, anchor="ma")
 
 
-def compose() -> Image.Image:
+def layout_copy(variant: dict, body_mm: float, leading_mm: float) -> dict:
+    body_f = font(FONT_BODY, body_mm)
+    med_f = font(FONT_MED, 4.2)
+    sign_f = font(FONT_SIGN, 5.2)
+    blocks: list[tuple[str, list[str], ImageFont.FreeTypeFont]] = []
+    if variant["salut"]:
+        blocks.append(("salut", [variant["salut"]], med_f))
+    for para in variant["paragraphs"]:
+        blocks.append(("para", wrap_line(para, body_f, TEXT_WIDTH_MM), body_f))
+    blocks.append(("sign", variant["sign"], sign_f))
+    return {"blocks": blocks, "leading": leading_mm, "gap": 5.6, "sign_lead": 7.8}
+
+
+def measure(layout: dict) -> float:
+    h = 0.0
+    n = len(layout["blocks"])
+    for i, (kind, lines, _fnt) in enumerate(layout["blocks"]):
+        lead = layout["sign_lead"] if kind == "sign" else layout["leading"]
+        h += lead * len(lines)
+        if i < n - 1:
+            h += layout["gap"]
+    return h
+
+
+def compose(variant: dict) -> Image.Image:
     card = Image.new("RGBA", (W, H), (*WHITE, 255))
-    card.alpha_composite(circuit_layer(scale=2))
+    card.alpha_composite(get_circuit())
     paste_logo(card)
     draw = ImageDraw.Draw(card)
-
-    body = font(FONT_BODY, 4.15)
-    med = font(FONT_MED, 4.35)
-    sign = font(FONT_SIGN, 5.4)
     navy = (*NAVY, 255)
 
-    y = 48.0
-    center_text(draw, SALUTATION, y, med, navy)
-    y = 62.0
-    y = block(draw, P1, y, body, navy, 6.15)
-    y += 7.2
-    y = block(draw, P2, y, body, navy, 6.15)
-    y += 7.2
-    y = block(draw, P3, y, body, navy, 6.15)
+    y0, y1 = 44.0, 198.0
+    layout = None
+    for body_mm, leading in ((3.85, 5.55), (3.7, 5.35), (3.55, 5.15)):
+        layout = layout_copy(variant, body_mm, leading)
+        if measure(layout) <= (y1 - y0):
+            break
+    assert layout is not None
+    y = y0 + max(0.0, (y1 - y0 - measure(layout)) / 2)
 
-    y = 176.0
-    y = block(draw, SIGN, y, sign, navy, 8.2)
+    for i, (kind, lines, fnt) in enumerate(layout["blocks"]):
+        lead = layout["sign_lead"] if kind == "sign" else layout["leading"]
+        for line in lines:
+            center_text(draw, line, y, fnt, navy)
+            y += lead
+        if i < len(layout["blocks"]) - 1:
+            y += layout["gap"]
     return card.convert("RGB")
 
 
@@ -267,103 +333,85 @@ def duplex(front: Path, back: Path, dest: Path) -> None:
         writer.write(f)
 
 
-def write_svg(dest: Path) -> None:
-    """Editable SVG with the same copy; circuits as simple paths."""
-    def t(x, y, s, size, weight="400", family="Inter", italic=False):
-        ital = ' font-style="italic"' if italic else ""
-        return (
-            f'<text x="{x:.2f}" y="{y:.2f}" fill="#2C2864" font-family="{family}" '
-            f'font-size="{size:.2f}" font-weight="{weight}" text-anchor="middle"{ital}>{s}</text>'
-        )
-
-    parts = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{W_MM}mm" height="{H_MM}mm" viewBox="0 0 {W_MM} {H_MM}">',
-        "<title>Lasmart 2027 — оборот</title>",
-        '<rect width="148" height="210" fill="#FFFFFF"/>',
-        t(74, 48.8, SALUTATION, 4.35, "500"),
-    ]
-    y = 64.2
-    for line in P1:
-        parts.append(t(74, y, line, 4.15))
-        y += 6.15
-    y += 7.2
-    for line in P2:
-        parts.append(t(74, y, line, 4.15))
-        y += 6.15
-    y += 7.2
-    for line in P3:
-        parts.append(t(74, y, line, 4.15))
-        y += 6.15
-    y = 178.2
-    for line in SIGN:
-        parts.append(t(74, y, line, 5.4, "400", "Noto Serif Display", True))
-        y += 8.2
-    parts.append("</svg>")
-    dest.write_text("\n".join(parts) + "\n", encoding="utf-8")
+def write_text(variant: dict, dest: Path) -> None:
+    lines = []
+    if variant["salut"]:
+        lines.append(variant["salut"])
+        lines.append("")
+    for para in variant["paragraphs"]:
+        lines.append(para)
+        lines.append("")
+    lines.extend(variant["sign"])
+    dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def word_count() -> None:
-    import re
+def comparison(thumbs: list[tuple[str, Image.Image]], dest: Path) -> None:
+    w, h = 520, int(520 * H / W)
+    gap, header, pad, cap = 28, 72, 24, 36
+    sheet = Image.new("RGB", (pad * 2 + w * 2 + gap, header + h + pad + cap), (255, 255, 255))
+    draw = ImageDraw.Draw(sheet)
+    title_f = ImageFont.truetype(FONT_MED, 28)
+    cap_f = ImageFont.truetype(FONT_BODY, 18)
+    draw.text((pad, 22), "Lasmart 2027 — два текста оборота", fill=NAVY, font=title_f)
+    for i, (label, im) in enumerate(thumbs):
+        thumb = im.resize((w, h), Image.Resampling.LANCZOS)
+        x = pad + i * (w + gap)
+        sheet.paste(thumb, (x, header))
+        draw.text((x, header + h + 4), label, fill=NAVY, font=cap_f)
+    sheet.save(dest, "PNG", optimize=True)
 
-    def words(s: str) -> list[str]:
-        return re.findall(r"[A-Za-zА-Яа-яЁё0-9-]+", s)
 
-    last = (
-        "Команда Lasmart поздравляет вас с Новым годом! Пусть 2026 принесет "
-        "новые возможности, уверенность и поводы для профессиональной гордости. "
-        "Ваше доверие и готовность к инновациям то что помогает нам двигаться вперед. "
-        "Каждый новый проект возможность вместе менять будущее, преодолевать вызовы "
-        "и задавать новые стандарты в IT-индустрии. "
-        "Мы ценим наше партнерство, вместе мы создаём IT-реальность будущего!"
-    )
-    now = " ".join(P1 + P2 + P3)
-    print("words 2026 body", len(words(last)))
-    print("words 2027 body", len(words(now)))
-    print("salut", SALUTATION, len(words(SALUTATION)))
+def export_variant(variant: dict, card: Image.Image) -> Path:
+    slug = variant["slug"]
+    stem = f"lasmart-2027-back-{variant['id']}-{slug}"
+    png = OUT / f"{stem}.png"
+    jpg = OUT / f"{stem}.jpg"
+    pdf = OUT / f"{stem}.pdf"
+    bleed = OUT / f"{stem}-bleed-3mm.pdf"
+    preview = OUT / f"{stem}-preview.jpg"
+    card.save(png, "PNG", dpi=(DPI, DPI), optimize=True)
+    card.save(jpg, "JPEG", quality=95, subsampling=0, dpi=(DPI, DPI))
+    save_pdf(card, pdf, W_MM, H_MM)
+    save_pdf(extend_bleed(card), bleed, W_MM + 6, H_MM + 6)
+    prev = card.copy()
+    prev.thumbnail((900, 1280), Image.Resampling.LANCZOS)
+    prev.save(preview, "JPEG", quality=90)
+    write_text(variant, OUT / f"{stem}.txt")
+    shutil.copy2(png, PRINT / f"{stem}-300dpi.png")
+    shutil.copy2(pdf, PRINT / f"{stem}-148x210.pdf")
+    shutil.copy2(bleed, PRINT / f"{stem}-bleed-3mm.pdf")
+    shutil.copy2(png, ART / f"back_{variant['id']}_{slug}.png")
+    shutil.copy2(preview, ART / f"back_{variant['id']}_{slug}_preview.jpg")
+    shutil.copy2(pdf, ART / f"back_{variant['id']}_{slug}.pdf")
+    if FRONT_PDF.exists():
+        duplex_path = PRINT / f"lasmart-2027-otkrytka-{variant['id']}.pdf"
+        duplex(FRONT_PDF, pdf, duplex_path)
+        shutil.copy2(duplex_path, ART / f"otkrytka_{variant['id']}.pdf")
+    print("wrote", png.name, card.size)
+    return png
 
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     PRINT.mkdir(parents=True, exist_ok=True)
     ART.mkdir(parents=True, exist_ok=True)
-    word_count()
 
-    card = compose()
-    png = OUT / "lasmart-2027-back.png"
-    jpg = OUT / "lasmart-2027-back.jpg"
-    pdf = OUT / "lasmart-2027-back.pdf"
-    pdf_bleed = OUT / "lasmart-2027-back-bleed-3mm.pdf"
-    svg = OUT / "lasmart-2027-back.svg"
-    preview = OUT / "lasmart-2027-back-preview.jpg"
+    thumbs: list[tuple[str, Image.Image]] = []
+    first_pdf = None
+    for variant in VARIANTS:
+        card = compose(variant)
+        png = export_variant(variant, card)
+        thumbs.append((f"{variant['id'].upper()} · {variant['title']}", card))
+        if first_pdf is None:
+            shutil.copy2(png, ROOT / "lasmart-2027-back.png")
+            pdf = OUT / f"lasmart-2027-back-{variant['id']}-{variant['slug']}.pdf"
+            shutil.copy2(pdf, ROOT / "lasmart-2027-back.pdf")
+            first_pdf = pdf
 
-    card.save(png, "PNG", dpi=(DPI, DPI), optimize=True)
-    card.save(jpg, "JPEG", quality=95, subsampling=0, dpi=(DPI, DPI))
-    save_pdf(card, pdf, W_MM, H_MM)
-    save_pdf(extend_bleed(card), pdf_bleed, W_MM + 6, H_MM + 6)
-    write_svg(svg)
-
-    prev = card.copy()
-    prev.thumbnail((900, 1280), Image.Resampling.LANCZOS)
-    prev.save(preview, "JPEG", quality=90)
-    prev.save(ART / "back_card_preview.jpg", "JPEG", quality=90)
-
-    shutil.copy2(png, ROOT / "lasmart-2027-back.png")
-    shutil.copy2(pdf, ROOT / "lasmart-2027-back.pdf")
-    shutil.copy2(png, PRINT / "lasmart-2027-back-300dpi.png")
-    shutil.copy2(pdf, PRINT / "lasmart-2027-back-148x210.pdf")
-    shutil.copy2(pdf_bleed, PRINT / "lasmart-2027-back-bleed-3mm.pdf")
-    shutil.copy2(png, ART / "lasmart-2027-back.png")
-    shutil.copy2(pdf, ART / "lasmart-2027-back.pdf")
-
-    if FRONT_PDF.exists():
-        duplex_path = PRINT / "lasmart-2027-otkrytka-a5.pdf"
-        duplex(FRONT_PDF, pdf, duplex_path)
-        shutil.copy2(duplex_path, ROOT / "lasmart-2027-otkrytka.pdf")
-        shutil.copy2(duplex_path, ART / "lasmart-2027-otkrytka-a5.pdf")
-        print("duplex", duplex_path)
-
-    print("wrote", png, card.size)
+    compare = OUT / "lasmart-2027-back-compare.png"
+    comparison(thumbs, compare)
+    shutil.copy2(compare, ART / "back_two_texts_compare.png")
+    print("compare", compare)
 
 
 if __name__ == "__main__":
