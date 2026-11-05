@@ -29,6 +29,9 @@ Navy-семейство (тот же цвет, светлее):
 
 - `pixel/back/lasmart-2027-back-v1-friends` — «Дорогие друзья и коллеги!»
 - `pixel/back/lasmart-2027-back-v2-updates` — «продуктивные апдейты»
+- `pixel/back/lasmart-2027-back-v3-renewal` — точка обновления
+- `pixel/back/lasmart-2027-back-v4-stories` — итог года
+- `pixel/back/lasmart-2027-back-v5-partners` — уважаемые партнёры
 
 Печатный комплект в `pixel/print/`:
 

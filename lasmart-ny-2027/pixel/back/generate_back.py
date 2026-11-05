@@ -63,6 +63,42 @@ VARIANTS = [
         ],
         "sign": ["С наилучшими пожеланиями,", "Команда Lasmart"],
     },
+    {
+        "id": "v3",
+        "slug": "renewal",
+        "title": "Точка обновления",
+        "salut": None,
+        "paragraphs": [
+            "Новый год — это точка обновления, с которой начинается следующий этап. Команда Lasmart рада пройти его вместе с вами.",
+            "Спасибо за задачи, которые заставляли нас расти, и за диалог, в котором рождались сильные решения. В уходящем году мы вместе запускали, дорабатывали и доводили до результата — и именно это сотрудничество делает нашу работу осмысленной.",
+            "Пусть в 2027 году ваши проекты идут по плану, идеи находят воплощение, а любые перемены приносят только пользу. Желаем вам крепкой команды рядом, ясных целей и времени на всё важное — и в работе, и за её пределами.",
+        ],
+        "sign": ["С Новым годом!", "Команда Lasmart"],
+    },
+    {
+        "id": "v4",
+        "slug": "stories",
+        "title": "Друзья, итог года",
+        "salut": "Дорогие друзья и коллеги!",
+        "paragraphs": [
+            "Подводим итог года и хотим сказать главное: нам ценно работать с людьми, которые не боятся нового. Спасибо, что выбирали нас и доверяли свои задачи.",
+            "Каждый ваш проект — это отдельная история со своими вызовами и решениями. Мы вместе учились, искали нестандартные ходы и находили их. Этот опыт дорогого стоит.",
+            "В наступающем году желаем вам уверенности в своих силах, интересных задач и достойных результатов. Пусть всё задуманное получается, а трудности оказываются просто этапами на пути к цели. Будем рады быть рядом в этом движении.",
+        ],
+        "sign": ["С Новым годом!", "Команда Lasmart"],
+    },
+    {
+        "id": "v5",
+        "slug": "partners",
+        "title": "Уважаемые партнёры",
+        "salut": "Уважаемые партнёры!",
+        "paragraphs": [
+            "За каждым проектом стоят люди — и это главное, что мы вынесли из уходящего года. Спасибо вам за сотрудничество, за доверие и за готовность вместе искать лучшие решения.",
+            "Мы ценим наш диалог и надеемся, что и дальше будем двигаться в одном направлении — делать работу качественно, а технологии — полезными. Впереди новый год, а значит, новые задачи и новые поводы для гордости за результат.",
+            "Желаем вам в 2027 году спокойствия в делах, вдохновения в идеях и людей рядом, на которых можно положиться.",
+        ],
+        "sign": ["С Новым годом!", "Команда Lasmart"],
+    },
 ]
 
 _CIRCUIT: Image.Image | None = None
@@ -345,19 +381,27 @@ def write_text(variant: dict, dest: Path) -> None:
     dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def comparison(thumbs: list[tuple[str, Image.Image]], dest: Path) -> None:
-    w, h = 520, int(520 * H / W)
-    gap, header, pad, cap = 28, 72, 24, 36
-    sheet = Image.new("RGB", (pad * 2 + w * 2 + gap, header + h + pad + cap), (255, 255, 255))
+def comparison(thumbs: list[tuple[str, Image.Image]], dest: Path, title: str) -> None:
+    cols = min(3, max(1, len(thumbs)))
+    rows = (len(thumbs) + cols - 1) // cols
+    w, h = 480, int(480 * H / W)
+    gap, header, pad, cap = 24, 72, 24, 40
+    sheet = Image.new(
+        "RGB",
+        (pad * 2 + cols * w + (cols - 1) * gap, header + rows * (h + cap) + (rows - 1) * gap + pad),
+        (255, 255, 255),
+    )
     draw = ImageDraw.Draw(sheet)
-    title_f = ImageFont.truetype(FONT_MED, 28)
-    cap_f = ImageFont.truetype(FONT_BODY, 18)
-    draw.text((pad, 22), "Lasmart 2027 — два текста оборота", fill=NAVY, font=title_f)
+    title_f = ImageFont.truetype(FONT_MED, 26)
+    cap_f = ImageFont.truetype(FONT_BODY, 16)
+    draw.text((pad, 22), title, fill=NAVY, font=title_f)
     for i, (label, im) in enumerate(thumbs):
+        r, c = divmod(i, cols)
         thumb = im.resize((w, h), Image.Resampling.LANCZOS)
-        x = pad + i * (w + gap)
-        sheet.paste(thumb, (x, header))
-        draw.text((x, header + h + 4), label, fill=NAVY, font=cap_f)
+        x = pad + c * (w + gap)
+        y = header + r * (h + cap + gap)
+        sheet.paste(thumb, (x, y))
+        draw.text((x, y + h + 6), label, fill=NAVY, font=cap_f)
     sheet.save(dest, "PNG", optimize=True)
 
 
@@ -408,10 +452,13 @@ def main() -> None:
             shutil.copy2(pdf, ROOT / "lasmart-2027-back.pdf")
             first_pdf = pdf
 
-    compare = OUT / "lasmart-2027-back-compare.png"
-    comparison(thumbs, compare)
-    shutil.copy2(compare, ART / "back_two_texts_compare.png")
-    print("compare", compare)
+    compare_all = OUT / "lasmart-2027-back-compare.png"
+    comparison(thumbs, compare_all, "Lasmart 2027 — тексты оборота")
+    new_thumbs = [t for t in thumbs if t[0].startswith("V3") or t[0].startswith("V4") or t[0].startswith("V5")]
+    compare_new = OUT / "lasmart-2027-back-compare-set2.png"
+    comparison(new_thumbs, compare_new, "Lasmart 2027 — три новых текста оборота")
+    shutil.copy2(compare_new, ART / "back_set2_compare.png")
+    print("compare", compare_new)
 
 
 if __name__ == "__main__":
